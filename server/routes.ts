@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -94,7 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projects
       });
     } catch (error) {
-      res.status(400).json({ error: "Failed to process uploaded file", details: error });
+      console.error("Upload error:", error);
+      res.status(400).json({ error: "Failed to process uploaded file", details: error instanceof Error ? error.message : error });
     }
   });
 
