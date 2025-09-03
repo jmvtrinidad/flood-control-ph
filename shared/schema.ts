@@ -27,7 +27,24 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updated_at: true,
 });
 
+// Schema for JSON uploads that handles numeric values properly
+export const uploadProjectSchema = z.object({
+  projectname: z.string(),
+  location: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  contractor: z.string(),
+  cost: z.number(),
+  start_date: z.string().optional(),
+  completion_date: z.string().optional(),
+  fy: z.string(),
+  region: z.string(),
+  other_details: z.string().optional(),
+  status: z.string().optional().default("active"),
+});
+
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type UploadProject = z.infer<typeof uploadProjectSchema>;
 export type Project = typeof projects.$inferSelect;
 
 // Filters schema

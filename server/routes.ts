@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, filtersSchema } from "@shared/schema";
+import { insertProjectSchema, filtersSchema, uploadProjectSchema } from "@shared/schema";
 import multer from "multer";
 import { z } from "zod";
 
@@ -78,9 +78,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Ensure it's an array
       const projectsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
-      const validatedProjects = z.array(insertProjectSchema).parse(projectsArray);
+      const validatedUploadProjects = z.array(uploadProjectSchema).parse(projectsArray);
       
-      const projects = await storage.createProjects(validatedProjects);
+      // Convert upload format to insert format
+      const insertProjects = validatedUploadProjects.map(project => ({
+        ...project,
+        latitude: project.latitude.toString(),
+        longitude: project.longitude.toString(),
+        cost: project.cost.toString(),
+      }));
+      
+      const projects = await storage.createProjects(insertProjects);
       res.json({
         message: `Successfully uploaded ${projects.length} projects`,
         projects
@@ -105,9 +113,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const jsonData = await response.json();
       const projectsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
-      const validatedProjects = z.array(insertProjectSchema).parse(projectsArray);
+      const validatedUploadProjects = z.array(uploadProjectSchema).parse(projectsArray);
       
-      const projects = await storage.createProjects(validatedProjects);
+      // Convert upload format to insert format
+      const insertProjects = validatedUploadProjects.map(project => ({
+        ...project,
+        latitude: project.latitude.toString(),
+        longitude: project.longitude.toString(),
+        cost: project.cost.toString(),
+      }));
+      
+      const projects = await storage.createProjects(insertProjects);
       res.json({
         message: `Successfully loaded ${projects.length} projects from URL`,
         projects
