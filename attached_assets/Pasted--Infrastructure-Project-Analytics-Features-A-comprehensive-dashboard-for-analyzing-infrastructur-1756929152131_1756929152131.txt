@@ -1,0 +1,155 @@
+# Infrastructure Project Analytics - Features
+
+A comprehensive dashboard for analyzing infrastructure projects across the Philippines with advanced filtering, mapping, and visualization capabilities.
+
+## 🚀 Core Features
+
+### 📊 Data Management
+- **Google Drive Integration**: Automatically loads project data from Google Drive
+- **Local Caching**: Offline-first approach with localStorage caching for performance
+- **File Upload**: Upload custom JSON project data files
+- **URL Data Fetching**: Load data from any accessible JSON URL
+- **Data Refresh**: Clear cache and reload fresh data with one click
+
+### 🔍 Advanced Filtering & Search
+- **Text Search**: Search across project names, locations, contractors, regions, and details
+- **Cost Filtering**: Filter by minimum and maximum project costs
+- **Categorical Filters**: Filter by region, contractor, location, and fiscal year
+- **Geographic Location Search**: Use Google Maps to search and filter by city/area boundaries
+- **URL State Management**: All filters and searches are saved in URL for easy sharing
+
+### 🗺️ Mapping & Location Features
+- **Google Maps Integration**: Interactive map view showing all project locations
+- **Project Markers**: Click markers to view detailed project information
+- **Geographic Filtering**: Search by city (e.g., "Davao City") to filter projects within that area's boundaries
+- **Location Autocomplete**: Google Places API integration for location search
+- **Map Bounds Filtering**: Automatically filter projects based on selected location boundaries
+
+### 📈 Data Visualization & Analytics
+- **Summary Cards**: Key metrics including total projects, costs, averages, and unique counts
+- **Cost by Region Charts**: Visual breakdown of project costs across different regions
+- **Projects by Contractor**: Distribution of projects among contractors
+- **Cost by Fiscal Year**: Timeline analysis of project investments
+- **Interactive Charts**: Built with Recharts for responsive data visualization
+
+### 🎛️ User Interface & Navigation
+- **Tabbed Interface**: Organized views for Overview, Data Table, and Analytics
+- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+- **Dark/Light Mode**: Theme support with semantic design tokens
+- **Modern UI Components**: Built with shadcn/ui components and Tailwind CSS
+- **Loading States**: Skeleton loaders and progress indicators
+
+### 📋 Data Table Features
+- **Sortable Columns**: Sort by any project attribute
+- **Pagination**: Efficient handling of large datasets
+- **Export Capabilities**: Export filtered data
+- **Detailed View**: Comprehensive project information display
+- **Real-time Filtering**: Instant updates as filters are applied
+
+## 🛠️ Technical Features
+
+### 🔧 Development & Architecture
+- **React 18**: Modern React with hooks and functional components
+- **TypeScript**: Full type safety and IntelliSense support
+- **Vite**: Fast development and build tooling
+- **Component Architecture**: Modular, reusable components
+- **Custom Hooks**: Specialized hooks for data management and analysis
+
+### 🔐 Security & Configuration
+- **API Key Management**: Secure handling of Google Maps API keys
+- **Environment Variables**: Proper configuration management
+- **Error Handling**: Comprehensive error states and user feedback
+- **Input Validation**: Form validation and data sanitization
+
+### ⚡ Performance Optimization
+- **Lazy Loading**: Efficient component and data loading
+- **Memoization**: Optimized re-renders with useMemo and useCallback
+- **Caching Strategy**: Smart caching for offline functionality
+- **Bundle Optimization**: Code splitting and tree shaking
+
+## 📱 User Experience Features
+
+### 🎯 Accessibility
+- **Keyboard Navigation**: Full keyboard accessibility
+- **Screen Reader Support**: ARIA labels and semantic HTML
+- **Color Contrast**: WCAG compliant color schemes
+- **Focus Management**: Proper focus handling
+
+### 🔄 State Management
+- **URL Synchronization**: Browser history integration
+- **Filter Persistence**: Maintain user preferences
+- **Real-time Updates**: Instant feedback on user actions
+- **Cross-tab Sync**: Consistent state across browser tabs
+
+### 📊 Data Analysis Tools
+- **Summary Statistics**: Automatic calculation of key metrics
+- **Trend Analysis**: Fiscal year progression tracking
+- **Geographic Analysis**: Location-based insights
+- **Contractor Performance**: Project distribution analysis
+
+## 🌟 Advanced Capabilities
+
+### 🗺️ Geographic Intelligence
+- **Boundary Detection**: Automatic detection of city/area boundaries
+- **Coordinate Filtering**: Latitude/longitude based filtering
+- **Regional Analysis**: Geographic distribution insights
+- **Location Validation**: Address verification and standardization
+
+### 📊 Business Intelligence
+- **Cost Analysis**: Comprehensive financial metrics
+- **Project Distribution**: Regional and contractor analysis
+- **Timeline Analytics**: Fiscal year trends and patterns
+- **Performance Metrics**: Efficiency and completion tracking
+
+### 🔗 Integration Ready
+- **API Endpoints**: RESTful API structure
+- **Data Export**: Multiple export formats
+- **Webhook Support**: Real-time data synchronization
+- **Third-party Integration**: Extensible architecture
+
+## 📋 Data Schema
+
+### Project Data Structure
+```typescript
+interface Project {
+  projectname: string;       // Project name/title
+  location: string;          // Project location
+  latitude: number;          // Geographic latitude
+  longitude: number;         // Geographic longitude
+  contractor: string;        // Contractor name
+  cost: number;             // Project cost
+  start_date: string;        // Project start date
+  completion_date: string;   // Project completion date
+  fy: string;               // Fiscal year
+  region: string;           // Administrative region
+  other_details: string;    // Additional project details
+}
+```
+
+## 🚀 Getting Started
+
+1. **Data Loading**: The application automatically loads data from the configured Google Drive source
+2. **Filtering**: Use the various filter controls to narrow down the dataset
+3. **Visualization**: Switch between different tabs to view data in various formats
+4. **Mapping**: Click "Show on Map" to visualize project locations
+5. **Sharing**: Copy the URL to share your current view and filters with others
+
+## 🔧 Configuration
+
+### Required API Keys
+- **Google Maps API Key**: For location search and mapping features
+  - Enable Places API for location autocomplete
+  - Enable Maps JavaScript API for map visualization
+
+### Data Sources
+- **Primary**: Google Drive file (configured in useProjects hook)
+- **Secondary**: File upload (JSON format)
+- **Tertiary**: Custom URL endpoint
+
+## 📞 Support
+
+For issues, feature requests, or questions about the Infrastructure Project Analytics dashboard, please refer to the application's error handling and help systems built into the interface.
+
+---
+
+*Built with React, TypeScript, Tailwind CSS, and modern web technologies for optimal performance and user experience.*
