@@ -27,14 +27,14 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updated_at: true,
 });
 
-// Schema for JSON uploads that handles numeric values properly
+// Schema for JSON uploads that handles numeric values properly, including nulls
 export const uploadProjectSchema = z.object({
   projectname: z.string(),
   location: z.string(),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
   contractor: z.string(),
-  cost: z.number(),
+  cost: z.number().nullable(),
   start_date: z.string().optional(),
   completion_date: z.string().optional(),
   fy: z.string(),

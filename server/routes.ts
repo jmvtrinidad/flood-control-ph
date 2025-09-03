@@ -80,17 +80,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
       const validatedUploadProjects = z.array(uploadProjectSchema).parse(projectsArray);
       
-      // Convert upload format to insert format
-      const insertProjects = validatedUploadProjects.map(project => ({
-        ...project,
-        latitude: project.latitude.toString(),
-        longitude: project.longitude.toString(),
-        cost: project.cost.toString(),
-      }));
+      // Filter out projects with null required values and convert to insert format
+      const insertProjects = validatedUploadProjects
+        .filter(project => 
+          project.latitude !== null && 
+          project.longitude !== null && 
+          project.cost !== null
+        )
+        .map(project => ({
+          ...project,
+          latitude: project.latitude!.toString(),
+          longitude: project.longitude!.toString(),
+          cost: project.cost!.toString(),
+        }));
       
       const projects = await storage.createProjects(insertProjects);
+      const skippedCount = validatedUploadProjects.length - insertProjects.length;
+      
       res.json({
-        message: `Successfully uploaded ${projects.length} projects`,
+        message: `Successfully uploaded ${projects.length} projects${skippedCount > 0 ? ` (${skippedCount} projects skipped due to missing coordinates or cost)` : ''}`,
         projects
       });
     } catch (error) {
@@ -116,17 +124,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectsArray = Array.isArray(jsonData) ? jsonData : [jsonData];
       const validatedUploadProjects = z.array(uploadProjectSchema).parse(projectsArray);
       
-      // Convert upload format to insert format
-      const insertProjects = validatedUploadProjects.map(project => ({
-        ...project,
-        latitude: project.latitude.toString(),
-        longitude: project.longitude.toString(),
-        cost: project.cost.toString(),
-      }));
+      // Filter out projects with null required values and convert to insert format
+      const insertProjects = validatedUploadProjects
+        .filter(project => 
+          project.latitude !== null && 
+          project.longitude !== null && 
+          project.cost !== null
+        )
+        .map(project => ({
+          ...project,
+          latitude: project.latitude!.toString(),
+          longitude: project.longitude!.toString(),
+          cost: project.cost!.toString(),
+        }));
       
       const projects = await storage.createProjects(insertProjects);
+      const skippedCount = validatedUploadProjects.length - insertProjects.length;
+      
       res.json({
-        message: `Successfully loaded ${projects.length} projects from URL`,
+        message: `Successfully loaded ${projects.length} projects from URL${skippedCount > 0 ? ` (${skippedCount} projects skipped due to missing coordinates or cost)` : ''}`,
         projects
       });
     } catch (error) {
