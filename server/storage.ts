@@ -144,13 +144,23 @@ export class MemStorage implements IStorage {
       ...data
     }));
 
-    // Group by contractor
+    // Group by contractor (handle multiple contractors separated by "/")
     const contractorMap = new Map<string, { count: number; cost: number }>();
     projects.forEach(p => {
-      const existing = contractorMap.get(p.contractor) || { count: 0, cost: 0 };
-      contractorMap.set(p.contractor, {
-        count: existing.count + 1,
-        cost: existing.cost + parseFloat(p.cost)
+      const projectCost = parseFloat(p.cost);
+      const contractors = p.contractor.split('/').map(c => c.trim());
+      
+      // If multiple contractors, divide the cost equally among them
+      const costPerContractor = projectCost / contractors.length;
+      
+      contractors.forEach(contractor => {
+        if (contractor) { // Only process non-empty contractor names
+          const existing = contractorMap.get(contractor) || { count: 0, cost: 0 };
+          contractorMap.set(contractor, {
+            count: existing.count + 1,
+            cost: existing.cost + costPerContractor
+          });
+        }
       });
     });
     const projectsByContractor = Array.from(contractorMap.entries()).map(([contractor, data]) => ({
