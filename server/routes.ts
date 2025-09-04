@@ -237,7 +237,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:projectId/reactions", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { rating, comment } = req.body;
+      const { rating, comment, userLocation } = req.body;
+
+      // If user location is provided, update user's location record
+      if (userLocation?.latitude && userLocation?.longitude) {
+        try {
+          await db.insert(userLocations)
+            .values({
+              userId,
+              latitude: userLocation.latitude.toString(),
+              longitude: userLocation.longitude.toString(),
+              address: 'Current Location'
+            })
+            .onConflictDoUpdate({
+              target: userLocations.userId,
+              set: {
+                latitude: userLocation.latitude.toString(),
+                longitude: userLocation.longitude.toString(),
+                updated_at: new Date()
+              }
+            });
+
+          // Update user's location verification status
+          await db.update(users)
+            .set({ 
+              isLocationVerified: true,
+              lastLocationUpdate: new Date()
+            })
+            .where(eq(users.id, userId));
+        } catch (locationError) {
+          console.error('Failed to update user location:', locationError);
+        }
+      }
+
+      // Calculate proximity verification if both project and user locations are available
+      let isProximityVerified = false;
+      if (userLocation?.latitude && userLocation?.longitude) {
+        try {
+          // Get project details for proximity calculation
+          const projectData = await db.select()
+            .from(projects)
+            .where(eq(projects.id, req.params.projectId))
+            .limit(1);
+
+          if (projectData.length > 0) {
+            const projectLat = parseFloat(projectData[0].latitude);
+            const projectLng = parseFloat(projectData[0].longitude);
+            const userLat = userLocation.latitude;
+            const userLng = userLocation.longitude;
+
+            // Calculate distance (Haversine formula for better accuracy)
+            const R = 6371; // Earth's radius in kilometers
+            const dLat = (userLat - projectLat) * (Math.PI / 180);
+            const dLon = (userLng - projectLng) * (Math.PI / 180);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                     Math.cos(projectLat * (Math.PI / 180)) * Math.cos(userLat * (Math.PI / 180)) *
+                     Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const distance = R * c; // Distance in km
+
+            // Consider verified if within 10km
+            isProximityVerified = distance <= 10;
+          }
+        } catch (proximityError) {
+          console.error('Failed to calculate proximity:', proximityError);
+        }
+      }
 
       // Check if user already has a reaction for this project
       const existingReaction = await db.select()
@@ -255,6 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .set({ 
             rating, 
             comment, 
+            isProximityVerified,
             updated_at: new Date() 
           })
           .where(eq(reactions.id, existingReaction[0].id))
@@ -267,13 +333,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectId: req.params.projectId,
             rating,
             comment,
-            isProximityVerified: false // Will be updated by proximity check
+            isProximityVerified
           })
           .returning();
       }
 
-      res.json(reaction[0]);
+      res.json({
+        ...reaction[0],
+        proximityVerified: isProximityVerified,
+        locationCaptured: !!userLocation
+      });
     } catch (error) {
+      console.error('Reaction save error:', error);
       res.status(500).json({ error: "Failed to save reaction" });
     }
   });

@@ -100,24 +100,97 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
       return;
     }
 
-    addReaction.mutate({
-      projectId: project.id,
-      rating,
-    }, {
-      onSuccess: () => {
-        toast({
-          title: 'Rating submitted',
-          description: `You rated this project as ${rating}`,
-        });
-      },
-      onError: () => {
-        toast({
-          title: 'Error',
-          description: 'Failed to submit rating',
-          variant: 'destructive',
-        });
-      },
-    });
+    // Request user's current location
+    if (navigator.geolocation) {
+      toast({
+        title: 'Getting your location',
+        description: 'Please allow location access to verify your proximity to the project',
+      });
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          addReaction.mutate({
+            projectId: project.id,
+            rating,
+            userLocation: {
+              latitude,
+              longitude,
+            },
+          }, {
+            onSuccess: () => {
+              toast({
+                title: 'Rating submitted',
+                description: `You rated this project as ${rating}`,
+              });
+            },
+            onError: () => {
+              toast({
+                title: 'Error',
+                description: 'Failed to submit rating',
+                variant: 'destructive',
+              });
+            },
+          });
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          
+          // Submit reaction without location if user denies or error occurs
+          addReaction.mutate({
+            projectId: project.id,
+            rating,
+          }, {
+            onSuccess: () => {
+              toast({
+                title: 'Rating submitted',
+                description: `You rated this project as ${rating} (location not verified)`,
+              });
+            },
+            onError: () => {
+              toast({
+                title: 'Error',
+                description: 'Failed to submit rating',
+                variant: 'destructive',
+              });
+            },
+          });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000, // 5 minutes
+        }
+      );
+    } else {
+      // Browser doesn't support geolocation
+      toast({
+        title: 'Location not supported',
+        description: 'Your browser does not support location services',
+        variant: 'destructive',
+      });
+      
+      // Submit reaction without location
+      addReaction.mutate({
+        projectId: project.id,
+        rating,
+      }, {
+        onSuccess: () => {
+          toast({
+            title: 'Rating submitted',
+            description: `You rated this project as ${rating} (location not verified)`,
+          });
+        },
+        onError: () => {
+          toast({
+            title: 'Error',
+            description: 'Failed to submit rating',
+            variant: 'destructive',
+          });
+        },
+      });
+    }
   };
 
   if (isLoading) {

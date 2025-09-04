@@ -26,14 +26,15 @@ export function useAddReaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ projectId, rating, comment }: { 
+    mutationFn: ({ projectId, rating, comment, userLocation }: { 
       projectId: string; 
       rating: string; 
-      comment?: string; 
+      comment?: string;
+      userLocation?: { latitude: number; longitude: number };
     }) =>
       apiRequest(`/api/projects/${projectId}/reactions`, {
         method: 'POST',
-        body: JSON.stringify({ rating, comment }),
+        body: JSON.stringify({ rating, comment, userLocation }),
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
