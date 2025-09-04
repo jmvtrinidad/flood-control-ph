@@ -2,10 +2,15 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowUpDown, Download, FileCode, MapPin, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, Download, FileCode, MapPin, Eye, ChevronLeft, ChevronRight, Star, AlertTriangle, Ghost, ThumbsUp } from 'lucide-react';
+import { LoginModal } from '@/components/auth/login-modal';
+import { useAuth } from '@/hooks/useAuth';
+import { useAddReaction, useProjectReactions } from '@/hooks/useReactions';
 import type { Project, SortField, SortDirection } from '@/types/project';
 import { formatCurrency, formatNumber, sortProjects } from '@/lib/analytics';
 import { downloadCSV, downloadJSON, exportToCSVFromAPI } from '@/lib/export';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
 
 interface DataTableTabProps {
   projects: Project[];
@@ -20,6 +25,11 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>('projectname');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  const { isAuthenticated, user } = useAuth();
+  const addReaction = useAddReaction();
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -51,6 +61,63 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
     return (
       <ArrowUpDown className={`ml-1 h-3 w-3 ${sortDirection === 'asc' ? 'rotate-180' : ''} text-foreground`} />
     );
+  };
+
+  const getRatingIcon = (rating: string) => {
+    switch (rating) {
+      case 'excellent':
+        return <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />;
+      case 'standard':
+        return <ThumbsUp className="h-4 w-4 text-green-500" />;
+      case 'sub-standard':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+      case 'ghost':
+        return <Ghost className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRatingColor = (rating: string) => {
+    switch (rating) {
+      case 'excellent':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'standard':
+        return 'text-green-600 bg-green-50 border-green-200';
+      case 'sub-standard':
+        return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'ghost':
+        return 'text-red-600 bg-red-50 border-red-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const handleReactionClick = (project: Project, rating: string) => {
+    if (!isAuthenticated) {
+      setSelectedProject(project);
+      setShowLoginModal(true);
+      return;
+    }
+
+    addReaction.mutate({
+      projectId: project.id,
+      rating,
+    }, {
+      onSuccess: () => {
+        toast({
+          title: 'Rating submitted',
+          description: `You rated this project as ${rating}`,
+        });
+      },
+      onError: () => {
+        toast({
+          title: 'Error',
+          description: 'Failed to submit rating',
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   if (isLoading) {
@@ -131,6 +198,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 >
                   Fiscal Year {getSortIcon('fy')}
                 </TableHead>
+                <TableHead>Rating</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -160,6 +228,46 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground">{project.fy}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Excellent"
+                          onClick={() => handleReactionClick(project, 'excellent')}
+                          data-testid={`button-excellent-${project.id}`}
+                        >
+                          {getRatingIcon('excellent')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Standard"
+                          onClick={() => handleReactionClick(project, 'standard')}
+                          data-testid={`button-standard-${project.id}`}
+                        >
+                          {getRatingIcon('standard')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Sub-standard"
+                          onClick={() => handleReactionClick(project, 'sub-standard')}
+                          data-testid={`button-sub-standard-${project.id}`}
+                        >
+                          {getRatingIcon('sub-standard')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Ghost Project"
+                          onClick={() => handleReactionClick(project, 'ghost')}
+                          data-testid={`button-ghost-${project.id}`}
+                        >
+                          {getRatingIcon('ghost')}
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Button 
@@ -194,7 +302,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <div className="text-muted-foreground">
                       <div className="text-center">
                         <div className="text-lg mb-2">No projects found</div>
@@ -207,6 +315,12 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
             </TableBody>
           </Table>
         </div>
+
+        <LoginModal 
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          message="Please log in to rate projects and share your feedback"
+        />
 
         {/* Pagination */}
         {paginatedProjects.length > 0 && (

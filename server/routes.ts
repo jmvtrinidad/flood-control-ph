@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, filtersSchema, uploadProjectSchema } from "@shared/schema";
+import { insertProjectSchema, filtersSchema, uploadProjectSchema, insertReactionSchema, insertUserLocationSchema, projects } from "@shared/schema";
+import { setupSession, setupPassport, setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
+import { db } from "./db";
+import { reactions, userLocations, users } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 import multer from "multer";
 import { z } from "zod";
 
@@ -11,6 +15,10 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  setupSession(app);
+  setupPassport(app);
+  setupAuthRoutes(app);
   // Get projects with optional filters
   app.get("/api/projects", async (req, res) => {
     try {
@@ -194,6 +202,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // Reaction routes
+  
+  // Get reactions for a project
+  app.get("/api/projects/:projectId/reactions", async (req, res) => {
+    try {
+      const projectReactions = await db.select({
+        id: reactions.id,
+        rating: reactions.rating,
+        comment: reactions.comment,
+        isProximityVerified: reactions.isProximityVerified,
+        createdAt: reactions.created_at,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+          isLocationVerified: users.isLocationVerified
+        }
+      })
+      .from(reactions)
+      .leftJoin(users, eq(reactions.userId, users.id))
+      .where(eq(reactions.projectId, req.params.projectId));
+
+      res.json(projectReactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reactions" });
+    }
+  });
+
+  // Add or update reaction (requires authentication)
+  app.post("/api/projects/:projectId/reactions", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { rating, comment } = req.body;
+
+      // Check if user already has a reaction for this project
+      const existingReaction = await db.select()
+        .from(reactions)
+        .where(and(
+          eq(reactions.userId, userId),
+          eq(reactions.projectId, req.params.projectId)
+        ))
+        .limit(1);
+
+      let reaction;
+      if (existingReaction.length > 0) {
+        // Update existing reaction
+        reaction = await db.update(reactions)
+          .set({ 
+            rating, 
+            comment, 
+            updated_at: new Date() 
+          })
+          .where(eq(reactions.id, existingReaction[0].id))
+          .returning();
+      } else {
+        // Create new reaction
+        reaction = await db.insert(reactions)
+          .values({
+            userId,
+            projectId: req.params.projectId,
+            rating,
+            comment,
+            isProximityVerified: false // Will be updated by proximity check
+          })
+          .returning();
+      }
+
+      res.json(reaction[0]);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save reaction" });
+    }
+  });
+
+  // Update user location for proximity verification
+  app.post("/api/user/location", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { latitude, longitude, address } = req.body;
+
+      // Save user location
+      const userLocation = await db.insert(userLocations)
+        .values({
+          userId,
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+          address
+        })
+        .returning();
+
+      // Update user's location verification status
+      await db.update(users)
+        .set({ 
+          isLocationVerified: true,
+          lastLocationUpdate: new Date()
+        })
+        .where(eq(users.id, userId));
+
+      res.json(userLocation[0]);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update location" });
+    }
+  });
+
+  // Calculate proximity and verify reactions
+  app.post("/api/reactions/:reactionId/verify-proximity", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const reactionId = req.params.reactionId;
+
+      // Get reaction details
+      const reactionData = await db.select()
+        .from(reactions)
+        .where(and(
+          eq(reactions.id, reactionId),
+          eq(reactions.userId, userId)
+        ))
+        .limit(1);
+
+      if (reactionData.length === 0) {
+        return res.status(404).json({ error: "Reaction not found" });
+      }
+
+      // Get project details
+      const projectData = await db.select()
+        .from(projects)
+        .where(eq(projects.id, reactionData[0].projectId))
+        .limit(1);
+
+      if (projectData.length === 0) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Get user's latest location
+      const userLocation = await db.select()
+        .from(userLocations)
+        .where(eq(userLocations.userId, userId))
+        .orderBy(userLocations.created_at)
+        .limit(1);
+
+      if (userLocation.length === 0) {
+        return res.status(400).json({ error: "User location not available" });
+      }
+
+      // Calculate distance (simplified - you might want to use a more accurate calculation)
+      const projectLat = parseFloat(projectData[0].latitude);
+      const projectLng = parseFloat(projectData[0].longitude);
+      const userLat = parseFloat(userLocation[0].latitude);
+      const userLng = parseFloat(userLocation[0].longitude);
+
+      const distance = Math.sqrt(
+        Math.pow(projectLat - userLat, 2) + Math.pow(projectLng - userLng, 2)
+      );
+
+      // Consider verified if within ~0.1 degrees (roughly 10km)
+      const isProximityVerified = distance < 0.1;
+
+      // Update reaction
+      const updatedReaction = await db.update(reactions)
+        .set({ isProximityVerified })
+        .where(eq(reactions.id, reactionId))
+        .returning();
+
+      res.json({ 
+        verified: isProximityVerified, 
+        distance: distance * 111, // Convert to approximate km
+        reaction: updatedReaction[0] 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to verify proximity" });
     }
   });
 
