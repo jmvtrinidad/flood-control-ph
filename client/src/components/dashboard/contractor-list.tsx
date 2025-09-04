@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowUpDown, Building, DollarSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, Building, DollarSign, Info } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 
 interface ContractorData {
@@ -15,9 +16,16 @@ interface ContractorData {
 interface ContractorListProps {
   contractors: ContractorData[];
   title?: string;
+  useFullCost?: boolean;
+  onUseFullCostChange?: (checked: boolean) => void;
 }
 
-export function ContractorList({ contractors, title = "Top Contractors" }: ContractorListProps) {
+export function ContractorList({ 
+  contractors, 
+  title = "Top Contractors", 
+  useFullCost = false,
+  onUseFullCostChange 
+}: ContractorListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'projects' | 'cost'>('projects');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -57,7 +65,7 @@ export function ContractorList({ contractors, title = "Top Contractors" }: Contr
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
               const [newSortBy, newSortOrder] = value.split('-') as ['projects' | 'cost', 'desc' | 'asc'];
               setSortBy(newSortBy);
@@ -76,6 +84,24 @@ export function ContractorList({ contractors, title = "Top Contractors" }: Contr
             </Select>
           </div>
         </div>
+        
+        {onUseFullCostChange && (
+          <div className="flex items-center space-x-2 pt-2 border-t">
+            <Checkbox 
+              id="use-full-cost"
+              checked={useFullCost}
+              onCheckedChange={onUseFullCostChange}
+              data-testid="checkbox-use-full-cost"
+            />
+            <label 
+              htmlFor="use-full-cost" 
+              className="text-sm text-muted-foreground cursor-pointer flex items-center"
+            >
+              Use full project cost for joint ventures
+              <Info className="ml-1 h-3 w-3" />
+            </label>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {currentContractors.length === 0 ? (

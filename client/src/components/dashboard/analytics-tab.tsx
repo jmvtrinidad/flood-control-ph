@@ -15,11 +15,13 @@ interface AnalyticsTabProps {
 
 export function AnalyticsTab({ filters }: AnalyticsTabProps) {
   const [dateRange, setDateRange] = useState('alltime');
+  const [useFullCost, setUseFullCost] = useState(false);
   
-  // Combine the passed filters with the date range filter
+  // Combine the passed filters with the date range filter and cost calculation method
   const analyticsFilters = {
     ...filters,
-    dateRange: dateRange
+    dateRange: dateRange,
+    useFullCostForJointVentures: useFullCost
   };
   
   const { data: analytics, isLoading } = useAnalytics(analyticsFilters);
@@ -263,6 +265,8 @@ export function AnalyticsTab({ filters }: AnalyticsTabProps) {
       <ContractorList 
         contractors={analytics?.projectsByContractor || []}
         title="Comprehensive Contractor Analysis"
+        useFullCost={useFullCost}
+        onUseFullCostChange={setUseFullCost}
       />
     </div>
   );

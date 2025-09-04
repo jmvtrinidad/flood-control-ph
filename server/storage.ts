@@ -289,8 +289,9 @@ export class MemStorage implements IStorage {
       const projectCost = parseFloat(p.cost);
       const contractors = p.contractor.split('/').map(c => c.trim());
       
-      // If multiple contractors, divide the cost equally among them
-      const costPerContractor = projectCost / contractors.length;
+      // Choose cost calculation method based on filter option
+      const useFullCost = filters?.useFullCostForJointVentures || false;
+      const costPerContractor = useFullCost ? projectCost : projectCost / contractors.length;
       
       contractors.forEach(contractor => {
         if (contractor) { // Only process non-empty contractor names

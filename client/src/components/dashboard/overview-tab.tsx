@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
 import { Building, DollarSign, Calculator, MapPin, TrendingUp, TrendingDown, ArrowRight, Download, Expand } from 'lucide-react';
 import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
@@ -16,7 +17,13 @@ interface OverviewTabProps {
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
-  const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
+  const [useFullCost, setUseFullCost] = useState(false);
+  
+  const analyticsFilters = {
+    useFullCostForJointVentures: useFullCost
+  };
+  
+  const { data: analytics, isLoading: analyticsLoading } = useAnalytics(analyticsFilters);
 
   if (isLoading || analyticsLoading) {
     return (
@@ -340,6 +347,8 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
         <ContractorList 
           contractors={analytics?.projectsByContractor || []}
           title="Top Performing Contractors"
+          useFullCost={useFullCost}
+          onUseFullCostChange={setUseFullCost}
         />
       </div>
     </div>

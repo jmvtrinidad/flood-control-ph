@@ -60,6 +60,7 @@ export const filtersSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   dateRange: z.string().optional(), // For predefined ranges like "12months"
+  useFullCostForJointVentures: z.boolean().optional(), // Use full cost instead of dividing for joint ventures
 });
 
 export type ProjectFilters = z.infer<typeof filtersSchema>;
