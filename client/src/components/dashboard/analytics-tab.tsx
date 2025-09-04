@@ -6,6 +6,7 @@ import { Download, TrendingUp } from 'lucide-react';
 import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line, Area, AreaChart } from 'recharts';
+import { ContractorList } from './contractor-list';
 import type { ProjectFilters } from '@/types/project';
 
 interface AnalyticsTabProps {
@@ -257,6 +258,12 @@ export function AnalyticsTab({ filters }: AnalyticsTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Comprehensive Contractor Analysis */}
+      <ContractorList 
+        contractors={analytics?.projectsByContractor || []}
+        title="Comprehensive Contractor Analysis"
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Building, DollarSign, Calculator, MapPin, TrendingUp, TrendingDown, Arr
 import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { ContractorList } from './contractor-list';
 import type { Project } from '@/types/project';
 
 interface OverviewTabProps {
@@ -289,50 +290,58 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
         </Card>
       </div>
 
-      {/* Recent Projects */}
-      <Card data-testid="recent-projects">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Projects</CardTitle>
-            <Button variant="ghost" size="sm" data-testid="button-view-all">
-              View All <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentProjects.length > 0 ? (
-              recentProjects.map((project, index) => (
-                <div 
-                  key={project.id} 
-                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
-                  data-testid={`project-item-${index}`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Building className="h-5 w-5 text-primary" />
+      {/* Recent Projects and Contractor List */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card data-testid="recent-projects">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Projects</CardTitle>
+              <Button variant="ghost" size="sm" data-testid="button-view-all">
+                View All <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentProjects.length > 0 ? (
+                recentProjects.map((project, index) => (
+                  <div 
+                    key={project.id} 
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                    data-testid={`project-item-${index}`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Building className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{project.projectname}</p>
+                        <p className="text-sm text-muted-foreground">{project.location}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{project.projectname}</p>
-                      <p className="text-sm text-muted-foreground">{project.location}</p>
+                    <div className="text-right">
+                      <p className="font-semibold text-foreground">{formatCurrency(parseFloat(project.cost))}</p>
+                      <p className="text-sm text-muted-foreground">{project.contractor}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-foreground">{formatCurrency(parseFloat(project.cost))}</p>
-                    <p className="text-sm text-muted-foreground">{project.contractor}</p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Building className="mx-auto h-8 w-8 mb-2" />
+                  <p className="text-sm">No projects available</p>
+                  <p className="text-xs">Upload data to get started</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Building className="mx-auto h-8 w-8 mb-2" />
-                <p className="text-sm">No projects available</p>
-                <p className="text-xs">Upload data to get started</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contractor List */}
+        <ContractorList 
+          contractors={analytics?.projectsByContractor || []}
+          title="Top Performing Contractors"
+        />
+      </div>
     </div>
   );
 }
