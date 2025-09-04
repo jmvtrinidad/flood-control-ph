@@ -187,10 +187,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get analytics
+  // Get analytics with optional filters
   app.get("/api/analytics", async (req, res) => {
     try {
-      const analytics = await storage.getAnalytics();
+      const analytics = await storage.getAnalytics(req.query);
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });

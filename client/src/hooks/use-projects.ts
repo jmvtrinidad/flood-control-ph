@@ -32,9 +32,26 @@ export function useProject(id: string) {
   });
 }
 
-export function useAnalytics() {
+export function useAnalytics(filters?: ProjectFilters) {
+  const queryParams = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.set(key, String(value));
+      }
+    });
+  }
+
   return useQuery<Analytics>({
-    queryKey: ['/api/analytics'],
+    queryKey: ['/api/analytics', queryParams.toString()],
+    queryFn: async () => {
+      const url = `/api/analytics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
+      }
+      return response.json();
+    },
   });
 }
 

@@ -33,7 +33,7 @@ export default function Dashboard() {
       case 'data-table':
         return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} />;
       case 'analytics':
-        return <AnalyticsTab />;
+        return <AnalyticsTab filters={combinedFilters} />;
       case 'map':
         return <MapTab projects={projects} isLoading={isLoading} />;
       default:

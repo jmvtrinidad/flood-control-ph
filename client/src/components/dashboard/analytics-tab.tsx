@@ -5,9 +5,14 @@ import { Download, TrendingUp } from 'lucide-react';
 import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line, Area, AreaChart } from 'recharts';
+import type { ProjectFilters } from '@/types/project';
 
-export function AnalyticsTab() {
-  const { data: analytics, isLoading } = useAnalytics();
+interface AnalyticsTabProps {
+  filters?: ProjectFilters;
+}
+
+export function AnalyticsTab({ filters }: AnalyticsTabProps) {
+  const { data: analytics, isLoading } = useAnalytics(filters);
 
   if (isLoading) {
     return (

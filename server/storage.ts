@@ -122,8 +122,60 @@ export class MemStorage implements IStorage {
     this.projects.clear();
   }
 
-  async getAnalytics() {
-    const projects = Array.from(this.projects.values());
+  async getAnalytics(filters?: any) {
+    let projects = Array.from(this.projects.values());
+    
+    // Apply filters if provided
+    if (filters) {
+      projects = projects.filter(project => {
+        // Search filter
+        if (filters.search) {
+          const search = filters.search.toLowerCase();
+          if (!project.projectname.toLowerCase().includes(search) &&
+              !project.location.toLowerCase().includes(search) &&
+              !project.contractor.toLowerCase().includes(search)) {
+            return false;
+          }
+        }
+
+        // Cost range filters
+        if (filters.minCost) {
+          const cost = parseFloat(project.cost);
+          if (cost < parseFloat(filters.minCost)) return false;
+        }
+        if (filters.maxCost) {
+          const cost = parseFloat(project.cost);
+          if (cost > parseFloat(filters.maxCost)) return false;
+        }
+
+        // Region filter
+        if (filters.region && project.region !== filters.region) {
+          return false;
+        }
+
+        // Contractor filter
+        if (filters.contractor && !project.contractor.toLowerCase().includes(filters.contractor.toLowerCase())) {
+          return false;
+        }
+
+        // Fiscal year filter
+        if (filters.fiscalYear && project.fy !== filters.fiscalYear) {
+          return false;
+        }
+
+        // Location filter
+        if (filters.location && !project.location.toLowerCase().includes(filters.location.toLowerCase())) {
+          return false;
+        }
+
+        // Status filter
+        if (filters.status && project.status !== filters.status) {
+          return false;
+        }
+
+        return true;
+      });
+    }
     const totalProjects = projects.length;
     const totalCost = projects.reduce((sum, p) => sum + parseFloat(p.cost), 0);
     const avgCost = totalProjects > 0 ? totalCost / totalProjects : 0;
