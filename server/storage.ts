@@ -1,7 +1,11 @@
-import { type Project, type InsertProject, type ProjectFilters } from "@shared/schema";
+import { type Project, type InsertProject, type ProjectFilters, uploadProjectSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { readFile } from "fs/promises";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 export interface IStorage {
+  initialize(): Promise<void>;
   getProjects(filters?: ProjectFilters): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
@@ -25,6 +29,38 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.projects = new Map();
+  }
+
+  async initialize(): Promise<void> {
+    try {
+      // Load the initial dataset from the JSON file
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const dataPath = join(__dirname, 'initial-data.json');
+      const rawData = await readFile(dataPath, 'utf-8');
+      const parsedData = JSON.parse(rawData);
+      
+      // Validate and create projects
+      const validProjects: InsertProject[] = [];
+      for (const item of parsedData) {
+        try {
+          const validatedProject = uploadProjectSchema.parse(item);
+          if (validatedProject.latitude && validatedProject.longitude && validatedProject.cost) {
+            validProjects.push(validatedProject);
+          }
+        } catch (error) {
+          // Skip invalid projects silently
+          continue;
+        }
+      }
+      
+      // Create all valid projects
+      await this.createProjects(validProjects);
+      console.log(`Loaded ${validProjects.length} infrastructure projects from initial dataset`);
+    } catch (error) {
+      console.warn('Could not load initial dataset:', error);
+      // Continue without initial data if file doesn't exist or is invalid
+    }
   }
 
   async getProjects(filters?: ProjectFilters): Promise<Project[]> {
