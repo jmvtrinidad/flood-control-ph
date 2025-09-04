@@ -22,6 +22,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [map, setMap] = useState<any>(null);
   const [currentSelectedProject, setCurrentSelectedProject] = useState<Project | null>(selectedProject || null);
   const [mapStyle, setMapStyle] = useState('roadmap');
+  const [showAllProjects, setShowAllProjects] = useState(!selectedProject);
+
+  // Update showAllProjects state when selectedProject changes
+  useEffect(() => {
+    setShowAllProjects(!selectedProject);
+  }, [selectedProject]);
 
   useEffect(() => {
     const initializeMap = () => {
@@ -39,8 +45,11 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
         setMap(mapInstance);
 
+        // Filter projects to display based on mode
+        const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
+        
         // Add markers for projects
-        projects.forEach((project) => {
+        projectsToDisplay.forEach((project) => {
           const marker = new window.google.maps.Marker({
             position: { 
               lat: parseFloat(project.latitude), 
@@ -90,7 +99,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     } else {
       initializeMap();
     }
-  }, [projects, mapStyle]);
+  }, [projects, mapStyle, showAllProjects, selectedProject]);
 
   const handleStyleChange = (newStyle: string) => {
     setMapStyle(newStyle);
@@ -128,10 +137,35 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     );
   }
 
+  const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
+
   return (
     <div className="p-6 space-y-6" data-testid="map-tab">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-foreground">Project Locations</h2>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-xl font-semibold text-foreground">Project Locations</h2>
+          {selectedProject && (
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant={showAllProjects ? "outline" : "default"}
+                size="sm"
+                onClick={() => setShowAllProjects(false)}
+                data-testid="button-show-selected"
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                Show Selected Only
+              </Button>
+              <Button 
+                variant={showAllProjects ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowAllProjects(true)}
+                data-testid="button-show-all"
+              >
+                Show All Projects
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" data-testid="button-toggle-layers">
             <Layers className="mr-2 h-4 w-4" />
@@ -215,8 +249,13 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           {/* Map Footer Info */}
           <div className="px-4 py-2 bg-muted/20 border-t border-border flex items-center justify-between text-sm">
             <div className="text-muted-foreground" data-testid="map-info">
-              <span>{projects.length}</span> projects visible • 
-              <span> {new Set(projects.map(p => p.region)).size}</span> regions
+              <span>{projectsToDisplay.length}</span> projects visible • 
+              <span> {new Set(projectsToDisplay.map(p => p.region)).size}</span> regions
+              {selectedProject && !showAllProjects && (
+                <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                  Filtered View
+                </span>
+              )}
             </div>
             <div className="text-muted-foreground">
               <MapPin className="inline h-4 w-4 mr-1" />
