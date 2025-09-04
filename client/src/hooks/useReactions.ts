@@ -32,10 +32,7 @@ export function useAddReaction() {
       comment?: string;
       userLocation?: { latitude: number; longitude: number };
     }) =>
-      apiRequest(`/api/projects/${projectId}/reactions`, {
-        method: 'POST',
-        body: JSON.stringify({ rating, comment, userLocation }),
-      }),
+      apiRequest('POST', `/api/projects/${projectId}/reactions`, { rating, comment, userLocation }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
         queryKey: [`/api/projects/${variables.projectId}/reactions`] 
@@ -49,9 +46,7 @@ export function useVerifyProximity() {
 
   return useMutation({
     mutationFn: (reactionId: string) =>
-      apiRequest(`/api/reactions/${reactionId}/verify-proximity`, {
-        method: 'POST',
-      }),
+      apiRequest('POST', `/api/reactions/${reactionId}/verify-proximity`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
     },

@@ -71,7 +71,14 @@ export class MemStorage implements IStorage {
         try {
           const validatedProject = uploadProjectSchema.parse(item);
           if (validatedProject.latitude && validatedProject.longitude && validatedProject.cost) {
-            validProjects.push(validatedProject);
+            const insertProject: InsertProject = {
+              ...validatedProject,
+              latitude: validatedProject.latitude.toString(),
+              longitude: validatedProject.longitude.toString(),
+              cost: validatedProject.cost.toString(),
+              status: validatedProject.status || "active"
+            };
+            validProjects.push(insertProject);
           }
         } catch (error) {
           // Skip invalid projects silently
@@ -142,12 +149,16 @@ export class MemStorage implements IStorage {
 
   async createProject(insertProject: InsertProject): Promise<Project> {
     const id = randomUUID();
-    const now = new Date().toISOString();
-    const project: Project = { 
-      ...insertProject, 
-      id, 
-      created_at: now as any,
-      updated_at: now as any 
+    const now = new Date();
+    const project: Project = {
+      ...insertProject,
+      status: insertProject.status || "active",
+      start_date: insertProject.start_date || null,
+      completion_date: insertProject.completion_date || null,
+      other_details: insertProject.other_details || null,
+      id,
+      created_at: now,
+      updated_at: now
     };
     this.projects.set(id, project);
     return project;
@@ -169,7 +180,7 @@ export class MemStorage implements IStorage {
     const updated: Project = {
       ...existing,
       ...updateData,
-      updated_at: new Date().toISOString() as any
+      updated_at: new Date()
     };
     this.projects.set(id, updated);
     return updated;
@@ -309,7 +320,7 @@ export class MemStorage implements IStorage {
     }));
 
     // Group by location within regions if a specific region filter is provided
-    let projectsByLocation = [];
+    let projectsByLocation: { location: string; count: number; cost: number }[] = [];
     if (filters?.region) {
       const regionProjects = projects.filter(p => p.region === filters.region);
       const locationMap = new Map<string, { count: number; cost: number }>();

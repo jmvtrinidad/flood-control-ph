@@ -254,7 +254,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               set: {
                 latitude: userLocation.latitude.toString(),
                 longitude: userLocation.longitude.toString(),
-                updated_at: new Date()
               }
             });
 
