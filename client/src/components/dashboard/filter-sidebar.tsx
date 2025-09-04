@@ -2,10 +2,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MapPin, Upload, RotateCcw, CloudDownload } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { ProjectFilters } from '@/types/project';
-import { useUploadFile, useClearProjects } from '@/hooks/use-projects';
-import { useToast } from '@/hooks/use-toast';
 
 interface FilterSidebarProps {
   filters: ProjectFilters;
@@ -14,55 +12,6 @@ interface FilterSidebarProps {
 }
 
 export function FilterSidebar({ filters, onFiltersChange, onClearFilters }: FilterSidebarProps) {
-  const uploadFile = useUploadFile();
-  const clearProjects = useClearProjects();
-  const { toast } = useToast();
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.endsWith('.json')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload a JSON file',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const result = await uploadFile.mutateAsync(file);
-      toast({
-        title: 'Upload successful',
-        description: result.message,
-      });
-    } catch (error) {
-      toast({
-        title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload file',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleClearData = async () => {
-    if (window.confirm('Are you sure you want to clear all project data? This action cannot be undone.')) {
-      try {
-        await clearProjects.mutateAsync();
-        toast({
-          title: 'Data cleared',
-          description: 'All project data has been cleared successfully',
-        });
-      } catch (error) {
-        toast({
-          title: 'Failed to clear data',
-          description: error instanceof Error ? error.message : 'An error occurred',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
 
   return (
     <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
@@ -198,43 +147,6 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters }: Filt
           </div>
         </div>
 
-        {/* Data Source */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Data Source</Label>
-          <div className="space-y-2">
-            <Button
-              className="w-full"
-              onClick={() => window.location.reload()}
-              disabled={clearProjects.isPending}
-              data-testid="button-refresh-data"
-            >
-              <CloudDownload className="mr-2 h-4 w-4" />
-              Refresh Data
-            </Button>
-            <label className="w-full px-3 py-2 bg-muted border border-border border-dashed rounded-md text-sm text-center cursor-pointer hover:bg-muted/80 transition-colors flex items-center justify-center space-x-2">
-              <Upload className="h-4 w-4" />
-              <span>Upload JSON File</span>
-              <input
-                type="file"
-                className="hidden"
-                accept=".json"
-                onChange={handleFileUpload}
-                disabled={uploadFile.isPending}
-                data-testid="input-file-upload"
-              />
-            </label>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleClearData}
-              disabled={clearProjects.isPending}
-              data-testid="button-clear-data"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {clearProjects.isPending ? 'Clearing...' : 'Clear All Data'}
-            </Button>
-          </div>
-        </div>
       </div>
     </aside>
   );
