@@ -38,14 +38,6 @@ export function AnalyticsTab() {
     rank: index + 1
   })) || [];
 
-  console.log('Analytics data:', {
-    hasAnalytics: !!analytics,
-    regionDataLength: regionData.length,
-    contractorDataLength: contractorData.length,
-    regionData: regionData.slice(0, 2),
-    contractorData: contractorData.slice(0, 2)
-  });
-
   const fiscalYearData = analytics?.projectsByFiscalYear?.sort((a, b) => a.fy.localeCompare(b.fy)).map(item => ({
     year: item.fy,
     projects: item.count,
