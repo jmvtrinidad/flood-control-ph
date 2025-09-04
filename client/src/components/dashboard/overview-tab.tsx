@@ -12,11 +12,12 @@ import type { Project } from '@/types/project';
 interface OverviewTabProps {
   projects: Project[];
   isLoading: boolean;
+  onLocationClick?: (location: string) => void;
 }
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
+export function OverviewTab({ projects, isLoading, onLocationClick }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   
@@ -200,9 +201,15 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} onClick={(data, index) => {
-                    if (data && data.activePayload && data.activePayload[0] && !selectedRegion) {
+                    if (data && data.activePayload && data.activePayload[0]) {
                       const clickedItem = data.activePayload[0].payload;
-                      setSelectedRegion(clickedItem.fullName);
+                      if (!selectedRegion) {
+                        // Click on region - show locations
+                        setSelectedRegion(clickedItem.fullName);
+                      } else {
+                        // Click on location - redirect to data table
+                        onLocationClick?.(clickedItem.fullName);
+                      }
                     }
                   }}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -217,7 +224,7 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
                     <Bar 
                       dataKey="cost" 
                       fill="hsl(var(--primary))" 
-                      cursor={!selectedRegion ? "pointer" : "default"}
+                      cursor="pointer"
                     />
                   </BarChart>
                 </ResponsiveContainer>

@@ -33,10 +33,15 @@ export default function Dashboard() {
     setActiveTab('map');
   };
 
+  const handleLocationClick = (location: string) => {
+    updateFilters({ location });
+    setActiveTab('data-table');
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab projects={projects} isLoading={isLoading} />;
+        return <OverviewTab projects={projects} isLoading={isLoading} onLocationClick={handleLocationClick} />;
       case 'data-table':
         return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} onViewOnMap={handleViewOnMap} />;
       case 'analytics':
