@@ -18,9 +18,11 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 
 export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   
   const analyticsFilters = {
-    useFullCostForJointVentures: useFullCost
+    useFullCostForJointVentures: useFullCost,
+    ...(selectedRegion && { region: selectedRegion })
   };
   
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics(analyticsFilters);
@@ -60,12 +62,20 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
   const avgCost = analytics?.avgCost || 0;
   const activeRegions = analytics?.activeRegions || 0;
 
-  // Prepare chart data
-  const regionData = analytics?.projectsByRegion?.slice(0, 10).map(item => ({
-    region: item.region.length > 15 ? item.region.substring(0, 15) + '...' : item.region,
-    cost: item.cost / 1e9, // Convert to billions
-    count: item.count
-  })) || [];
+  // Prepare chart data - show locations if region is selected, otherwise show regions
+  const chartData = selectedRegion 
+    ? (analytics?.projectsByLocation?.slice(0, 10).map(item => ({
+        name: item.location.length > 15 ? item.location.substring(0, 15) + '...' : item.location,
+        fullName: item.location,
+        cost: item.cost / 1e9, // Convert to billions
+        count: item.count
+      })) || [])
+    : (analytics?.projectsByRegion?.slice(0, 10).map(item => ({
+        name: item.region.length > 15 ? item.region.substring(0, 15) + '...' : item.region,
+        fullName: item.region,
+        cost: item.cost / 1e9, // Convert to billions
+        count: item.count
+      })) || []);
 
   const contractorData = analytics?.projectsByContractor?.slice(0, 8).map((item, index) => ({
     contractor: item.contractor.length > 20 ? item.contractor.substring(0, 20) + '...' : item.contractor,
@@ -161,8 +171,21 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
         <Card data-testid="chart-cost-by-region">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Investment by Region</CardTitle>
+              <CardTitle>
+                {selectedRegion ? `Investment by Location in ${selectedRegion}` : 'Investment by Region'}
+              </CardTitle>
               <div className="flex items-center space-x-2">
+                {selectedRegion && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedRegion(null)}
+                    data-testid="back-to-regions"
+                  >
+                    <ArrowRight className="h-4 w-4 rotate-180 mr-1" />
+                    Back to Regions
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm">
                   <Download className="h-4 w-4" />
                 </Button>
@@ -174,11 +197,16 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              {regionData.length > 0 ? (
+              {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={regionData}>
+                  <BarChart data={chartData} onClick={(data, index) => {
+                    if (data && data.activePayload && data.activePayload[0] && !selectedRegion) {
+                      const clickedItem = data.activePayload[0].payload;
+                      setSelectedRegion(clickedItem.fullName);
+                    }
+                  }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="region" fontSize={12} />
+                    <XAxis dataKey="name" fontSize={12} />
                     <YAxis fontSize={12} />
                     <Tooltip 
                       formatter={(value: number, name: string) => [
@@ -186,7 +214,11 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
                         name === 'cost' ? 'Investment' : 'Projects'
                       ]}
                     />
-                    <Bar dataKey="cost" fill="hsl(var(--primary))" />
+                    <Bar 
+                      dataKey="cost" 
+                      fill="hsl(var(--primary))" 
+                      cursor={!selectedRegion ? "pointer" : "default"}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

@@ -33,6 +33,7 @@ export type Analytics = {
   avgCost: number;
   activeRegions: number;
   projectsByRegion: { region: string; count: number; cost: number }[];
+  projectsByLocation?: { location: string; count: number; cost: number }[];
   projectsByContractor: { contractor: string; count: number; cost: number }[];
   projectsByFiscalYear: { fy: string; count: number; cost: number }[];
 };

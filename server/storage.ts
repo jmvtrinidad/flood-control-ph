@@ -283,6 +283,24 @@ export class MemStorage implements IStorage {
       ...data
     }));
 
+    // Group by location within regions if a specific region filter is provided
+    let projectsByLocation = [];
+    if (filters?.region) {
+      const regionProjects = projects.filter(p => p.region === filters.region);
+      const locationMap = new Map<string, { count: number; cost: number }>();
+      regionProjects.forEach(p => {
+        const existing = locationMap.get(p.location) || { count: 0, cost: 0 };
+        locationMap.set(p.location, {
+          count: existing.count + 1,
+          cost: existing.cost + parseFloat(p.cost)
+        });
+      });
+      projectsByLocation = Array.from(locationMap.entries()).map(([location, data]) => ({
+        location,
+        ...data
+      }));
+    }
+
     // Group by contractor (handle multiple contractors separated by "/")
     const contractorMap = new Map<string, { count: number; cost: number }>();
     projects.forEach(p => {
@@ -328,6 +346,7 @@ export class MemStorage implements IStorage {
       avgCost,
       activeRegions,
       projectsByRegion,
+      projectsByLocation,
       projectsByContractor,
       projectsByFiscalYear,
     };
