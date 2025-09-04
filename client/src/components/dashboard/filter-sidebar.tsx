@@ -2,7 +2,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MapPin } from 'lucide-react';
 import type { ProjectFilters } from '@/types/project';
 
 interface FilterSidebarProps {
@@ -129,23 +128,6 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters }: Filt
           </Select>
         </div>
 
-        {/* Location Search */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Location Search</Label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <Input
-              type="text"
-              placeholder="Search by city or area..."
-              value={filters.location || ''}
-              onChange={(e) => onFiltersChange({ location: e.target.value || undefined })}
-              className="pl-10"
-              data-testid="input-location"
-            />
-          </div>
-        </div>
 
       </div>
     </aside>

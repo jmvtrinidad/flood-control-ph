@@ -41,7 +41,7 @@ export default function Dashboard() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab projects={projects} isLoading={isLoading} onLocationClick={handleLocationClick} />;
+        return <OverviewTab projects={projects} isLoading={isLoading} filters={combinedFilters} onLocationClick={handleLocationClick} />;
       case 'data-table':
         return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} onViewOnMap={handleViewOnMap} />;
       case 'analytics':

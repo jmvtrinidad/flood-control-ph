@@ -7,21 +7,23 @@ import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { ContractorList } from './contractor-list';
-import type { Project } from '@/types/project';
+import type { Project, ProjectFilters } from '@/types/project';
 
 interface OverviewTabProps {
   projects: Project[];
   isLoading: boolean;
+  filters?: ProjectFilters;
   onLocationClick?: (location: string) => void;
 }
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-export function OverviewTab({ projects, isLoading, onLocationClick }: OverviewTabProps) {
+export function OverviewTab({ projects, isLoading, filters, onLocationClick }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   
   const analyticsFilters = {
+    ...filters, // Include global filters (including search)
     useFullCostForJointVentures: useFullCost,
     ...(selectedRegion && { region: selectedRegion })
   };
