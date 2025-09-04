@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Project } from '@/types/project';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { FilterSidebar } from '@/components/dashboard/filter-sidebar';
@@ -18,8 +18,15 @@ export default function Dashboard() {
   const { filters, updateFilters, clearFilters } = useFilters();
   
   // Create combined filters including search
-  const [searchQuery, setSearchQuery] = useState(filters.search || '');
+  const [searchQuery, setSearchQuery] = useState('');
   const combinedFilters = { ...filters, search: searchQuery };
+  
+  // Sync searchQuery with filters.search when filters are loaded from URL
+  useEffect(() => {
+    if (filters.search !== undefined) {
+      setSearchQuery(filters.search);
+    }
+  }, [filters.search]);
   
   const { data: projects = [], isLoading } = useProjects(combinedFilters);
 
