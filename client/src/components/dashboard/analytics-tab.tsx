@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +13,15 @@ interface AnalyticsTabProps {
 }
 
 export function AnalyticsTab({ filters }: AnalyticsTabProps) {
-  const { data: analytics, isLoading } = useAnalytics(filters);
+  const [dateRange, setDateRange] = useState('alltime');
+  
+  // Combine the passed filters with the date range filter
+  const analyticsFilters = {
+    ...filters,
+    dateRange: dateRange
+  };
+  
+  const { data: analytics, isLoading } = useAnalytics(analyticsFilters);
 
   if (isLoading) {
     return (
@@ -54,7 +63,7 @@ export function AnalyticsTab({ filters }: AnalyticsTabProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">Advanced Analytics</h2>
         <div className="flex items-center space-x-2">
-          <Select defaultValue="12months">
+          <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-48" data-testid="select-time-range">
               <SelectValue />
             </SelectTrigger>

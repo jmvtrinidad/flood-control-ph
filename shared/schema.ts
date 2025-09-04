@@ -57,6 +57,9 @@ export const filtersSchema = z.object({
   fiscalYear: z.string().optional(),
   location: z.string().optional(),
   status: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  dateRange: z.string().optional(), // For predefined ranges like "12months"
 });
 
 export type ProjectFilters = z.infer<typeof filtersSchema>;

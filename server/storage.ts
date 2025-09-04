@@ -209,6 +209,57 @@ export class MemStorage implements IStorage {
           return false;
         }
 
+        // Date range filter
+        if (filters.dateRange) {
+          const now = new Date();
+          let cutoffDate: Date;
+          
+          switch (filters.dateRange) {
+            case '12months':
+              cutoffDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+              break;
+            case '24months':
+              cutoffDate = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
+              break;
+            case 'alltime':
+              cutoffDate = new Date(0); // Beginning of time
+              break;
+            default:
+              cutoffDate = new Date(0);
+          }
+          
+          // Check if project falls within date range using start_date or completion_date
+          const projectStartDate = project.start_date ? new Date(project.start_date) : null;
+          const projectCompletionDate = project.completion_date ? new Date(project.completion_date) : null;
+          
+          const hasValidDate = (projectStartDate && projectStartDate >= cutoffDate) || 
+                              (projectCompletionDate && projectCompletionDate >= cutoffDate);
+          
+          if (!hasValidDate && filters.dateRange !== 'alltime') {
+            return false;
+          }
+        }
+
+        // Custom date range filter  
+        if (filters.dateFrom || filters.dateTo) {
+          const projectStartDate = project.start_date ? new Date(project.start_date) : null;
+          const projectCompletionDate = project.completion_date ? new Date(project.completion_date) : null;
+          
+          if (filters.dateFrom) {
+            const fromDate = new Date(filters.dateFrom);
+            const hasValidFromDate = (projectStartDate && projectStartDate >= fromDate) ||
+                                    (projectCompletionDate && projectCompletionDate >= fromDate);
+            if (!hasValidFromDate) return false;
+          }
+          
+          if (filters.dateTo) {
+            const toDate = new Date(filters.dateTo);
+            const hasValidToDate = (projectStartDate && projectStartDate <= toDate) ||
+                                  (projectCompletionDate && projectCompletionDate <= toDate);
+            if (!hasValidToDate) return false;
+          }
+        }
+
         return true;
       });
     }
