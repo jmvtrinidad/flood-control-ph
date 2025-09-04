@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, timestamp, jsonb, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -64,3 +64,66 @@ export const filtersSchema = z.object({
 });
 
 export type ProjectFilters = z.infer<typeof filtersSchema>;
+
+// Users table for authentication
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique().notNull(),
+  name: text("name").notNull(),
+  avatar: text("avatar"), // Profile picture URL
+  provider: text("provider").notNull(), // 'google' or 'facebook'
+  providerId: text("provider_id").notNull(), // ID from OAuth provider
+  isLocationVerified: boolean("is_location_verified").default(false),
+  lastLocationUpdate: timestamp("last_location_update"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// User locations for proximity verification
+export const userLocations = pgTable("user_locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  address: text("address"),
+  verifiedAt: timestamp("verified_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// Project reactions
+export const reactions = pgTable("reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  rating: text("rating").notNull(), // 'excellent', 'standard', 'sub-standard', 'ghost'
+  comment: text("comment"),
+  isProximityVerified: boolean("is_proximity_verified").default(false),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Schema types
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export const insertReactionSchema = createInsertSchema(reactions).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export const insertUserLocationSchema = createInsertSchema(userLocations).omit({
+  id: true,
+  created_at: true,
+  verifiedAt: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertReaction = z.infer<typeof insertReactionSchema>;
+export type Reaction = typeof reactions.$inferSelect;
+export type InsertUserLocation = z.infer<typeof insertUserLocationSchema>;
+export type UserLocation = typeof userLocations.$inferSelect;
