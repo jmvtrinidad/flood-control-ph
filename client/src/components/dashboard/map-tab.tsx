@@ -8,6 +8,7 @@ import type { Project } from '@/types/project';
 interface MapTabProps {
   projects: Project[];
   isLoading: boolean;
+  selectedProject?: Project | null;
 }
 
 declare global {
@@ -17,9 +18,9 @@ declare global {
   }
 }
 
-export function MapTab({ projects, isLoading }: MapTabProps) {
+export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [map, setMap] = useState<any>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [currentSelectedProject, setCurrentSelectedProject] = useState<Project | null>(selectedProject || null);
   const [mapStyle, setMapStyle] = useState('roadmap');
 
   useEffect(() => {
@@ -47,12 +48,32 @@ export function MapTab({ projects, isLoading }: MapTabProps) {
             },
             map: mapInstance,
             title: project.projectname,
+            icon: selectedProject?.id === project.id ? {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+                '<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M12 0C5.4 0 0 5.4 0 12s12 24 12 24 12-17.6 12-24S18.6 0 12 0z" fill="#FF4444"/>' +
+                '<circle cx="12" cy="12" r="6" fill="white"/>' +
+                '</svg>'
+              ),
+              scaledSize: new window.google.maps.Size(24, 36)
+            } : undefined,
           });
 
           marker.addListener('click', () => {
-            setSelectedProject(project);
+            setCurrentSelectedProject(project);
           });
         });
+
+        // Center on selected project if provided
+        if (selectedProject && selectedProject.latitude && selectedProject.longitude) {
+          const selectedLocation = {
+            lat: parseFloat(selectedProject.latitude),
+            lng: parseFloat(selectedProject.longitude)
+          };
+          mapInstance.setCenter(selectedLocation);
+          mapInstance.setZoom(12);
+          setCurrentSelectedProject(selectedProject);
+        }
       }
     };
 
@@ -206,7 +227,7 @@ export function MapTab({ projects, isLoading }: MapTabProps) {
       </Card>
 
       {/* Project Details Panel */}
-      {selectedProject && (
+      {currentSelectedProject && (
         <Card data-testid="project-details-panel">
           <CardHeader>
             <div className="flex items-start justify-between">
@@ -214,7 +235,7 @@ export function MapTab({ projects, isLoading }: MapTabProps) {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setSelectedProject(null)}
+                onClick={() => setCurrentSelectedProject(null)}
                 data-testid="button-close-details"
               >
                 ×
@@ -224,58 +245,58 @@ export function MapTab({ projects, isLoading }: MapTabProps) {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium text-foreground mb-2">{selectedProject.projectname}</h4>
+                <h4 className="font-medium text-foreground mb-2">{currentSelectedProject.projectname}</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Location:</span>
-                    <span className="text-foreground">{selectedProject.location}</span>
+                    <span className="text-foreground">{currentSelectedProject.location}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Contractor:</span>
-                    <span className="text-foreground">{selectedProject.contractor}</span>
+                    <span className="text-foreground">{currentSelectedProject.contractor}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Cost:</span>
                     <span className="font-semibold text-foreground">
-                      ₱{(parseFloat(selectedProject.cost) / 1e9).toFixed(1)}B
+                      ₱{(parseFloat(currentSelectedProject.cost) / 1e9).toFixed(1)}B
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Fiscal Year:</span>
-                    <span className="text-foreground">{selectedProject.fy}</span>
+                    <span className="text-foreground">{currentSelectedProject.fy}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Region:</span>
-                    <span className="text-foreground">{selectedProject.region}</span>
+                    <span className="text-foreground">{currentSelectedProject.region}</span>
                   </div>
                 </div>
               </div>
               <div>
                 <h4 className="font-medium text-foreground mb-2">Project Timeline</h4>
                 <div className="space-y-2 text-sm">
-                  {selectedProject.start_date && (
+                  {currentSelectedProject.start_date && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Start Date:</span>
-                      <span className="text-foreground">{selectedProject.start_date}</span>
+                      <span className="text-foreground">{currentSelectedProject.start_date}</span>
                     </div>
                   )}
-                  {selectedProject.completion_date && (
+                  {currentSelectedProject.completion_date && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Completion Date:</span>
-                      <span className="text-foreground">{selectedProject.completion_date}</span>
+                      <span className="text-foreground">{currentSelectedProject.completion_date}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
                     <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-xs">
-                      {selectedProject.status || 'Active'}
+                      {currentSelectedProject.status || 'Active'}
                     </span>
                   </div>
                 </div>
-                {selectedProject.other_details && (
+                {currentSelectedProject.other_details && (
                   <div className="mt-4">
                     <h4 className="font-medium text-foreground mb-2">Additional Details</h4>
-                    <p className="text-sm text-muted-foreground">{selectedProject.other_details}</p>
+                    <p className="text-sm text-muted-foreground">{currentSelectedProject.other_details}</p>
                   </div>
                 )}
               </div>

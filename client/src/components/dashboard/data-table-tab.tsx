@@ -11,11 +11,12 @@ interface DataTableTabProps {
   projects: Project[];
   isLoading: boolean;
   filters: any;
+  onViewOnMap?: (project: Project) => void;
 }
 
 const ITEMS_PER_PAGE = 25;
 
-export function DataTableTab({ projects, isLoading, filters }: DataTableTabProps) {
+export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: DataTableTabProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>('projectname');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -165,6 +166,7 @@ export function DataTableTab({ projects, isLoading, filters }: DataTableTabProps
                           variant="ghost" 
                           size="sm"
                           title="View on Map"
+                          onClick={() => onViewOnMap?.(project)}
                           data-testid={`button-map-${project.id}`}
                         >
                           <MapPin className="h-4 w-4" />

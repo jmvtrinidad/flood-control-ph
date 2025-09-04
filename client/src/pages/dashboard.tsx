@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Project } from '@/types/project';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { FilterSidebar } from '@/components/dashboard/filter-sidebar';
 import { TabNavigation } from '@/components/dashboard/tab-navigation';
@@ -13,6 +14,7 @@ type Tab = 'overview' | 'data-table' | 'analytics' | 'map';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const { filters, updateFilters, clearFilters } = useFilters();
   
   // Create combined filters including search
@@ -26,16 +28,21 @@ export default function Dashboard() {
     updateFilters({ search: query || undefined });
   };
 
+  const handleViewOnMap = (project: Project) => {
+    setSelectedProject(project);
+    setActiveTab('map');
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab projects={projects} isLoading={isLoading} />;
       case 'data-table':
-        return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} />;
+        return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} onViewOnMap={handleViewOnMap} />;
       case 'analytics':
         return <AnalyticsTab filters={combinedFilters} />;
       case 'map':
-        return <MapTab projects={projects} isLoading={isLoading} />;
+        return <MapTab projects={projects} isLoading={isLoading} selectedProject={selectedProject} />;
       default:
         return <OverviewTab projects={projects} isLoading={isLoading} />;
     }
