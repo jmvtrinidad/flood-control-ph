@@ -36,9 +36,34 @@ export class MemStorage implements IStorage {
       // Load the initial dataset from the JSON file
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = dirname(__filename);
-      const dataPath = join(__dirname, 'initial-data.json');
-      const rawData = await readFile(dataPath, 'utf-8');
+      
+      // Try multiple possible paths for the data file
+      const possiblePaths = [
+        join(__dirname, 'initial-data.json'),
+        join(__dirname, '..', 'server', 'initial-data.json'),
+        join(process.cwd(), 'server', 'initial-data.json'),
+        'server/initial-data.json'
+      ];
+      
+      let rawData: string | null = null;
+      let usedPath: string | null = null;
+      
+      for (const dataPath of possiblePaths) {
+        try {
+          rawData = await readFile(dataPath, 'utf-8');
+          usedPath = dataPath;
+          break;
+        } catch (error) {
+          // Try next path
+          continue;
+        }
+      }
+      
+      if (!rawData) {
+        throw new Error('Could not find initial-data.json in any expected location');
+      }
       const parsedData = JSON.parse(rawData);
+      console.log(`Successfully loaded data from: ${usedPath}`);
       
       // Validate and create projects
       const validProjects: InsertProject[] = [];
