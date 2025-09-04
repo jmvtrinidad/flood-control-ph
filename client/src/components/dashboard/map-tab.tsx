@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers, Crosshair, Expand, MapPin } from 'lucide-react';
 import type { Project } from '@/types/project';
+import { formatCurrency } from '@/lib/analytics';
 
 interface MapTabProps {
   projects: Project[];
@@ -297,7 +298,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Cost:</span>
                     <span className="font-semibold text-foreground">
-                      ₱{(parseFloat(currentSelectedProject.cost) / 1e9).toFixed(1)}B
+                      {formatCurrency(parseFloat(currentSelectedProject.cost))}
                     </span>
                   </div>
                   <div className="flex justify-between">
