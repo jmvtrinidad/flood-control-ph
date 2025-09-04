@@ -65,6 +65,14 @@ export function OverviewTab({ projects, isLoading }: OverviewTabProps) {
     fill: COLORS[index % COLORS.length]
   })) || [];
 
+  console.log('Overview analytics data:', {
+    hasAnalytics: !!analytics,
+    regionDataLength: regionData.length,
+    contractorDataLength: contractorData.length,
+    regionSample: regionData.slice(0, 2),
+    contractorSample: contractorData.slice(0, 2)
+  });
+
   const fiscalYearData = analytics?.projectsByFiscalYear?.sort((a, b) => a.fy.localeCompare(b.fy)).map(item => ({
     year: item.fy,
     cost: item.cost / 1e9, // Convert to billions
