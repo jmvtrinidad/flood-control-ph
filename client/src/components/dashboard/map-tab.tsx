@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Layers, Crosshair, Expand, MapPin } from 'lucide-react';
+import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAddReaction, useProjectReactions } from '@/hooks/useReactions';
+import { useAuth } from '@/hooks/useAuth';
 import type { Project } from '@/types/project';
 import { formatCurrency } from '@/lib/analytics';
 
@@ -24,11 +27,111 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [currentSelectedProject, setCurrentSelectedProject] = useState<Project | null>(selectedProject || null);
   const [mapStyle, setMapStyle] = useState('roadmap');
   const [showAllProjects, setShowAllProjects] = useState(!selectedProject);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  
+  const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+  const addReaction = useAddReaction();
+  const { data: reactions = [] } = useProjectReactions(currentSelectedProject?.id || '');
 
   // Update showAllProjects state when selectedProject changes
   useEffect(() => {
     setShowAllProjects(!selectedProject);
   }, [selectedProject]);
+
+  // Get user's current location
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+          toast({
+            title: "Location captured",
+            description: "Your location has been captured for proximity verification."
+          });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast({
+            title: "Location access denied",
+            description: "Please allow location access for proximity verification.",
+            variant: "destructive"
+          });
+        }
+      );
+    } else {
+      toast({
+        title: "Location not supported",
+        description: "Your browser doesn't support location services.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReactionClick = async (rating: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to rate projects.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!currentSelectedProject) return;
+
+    try {
+      await addReaction.mutateAsync({
+        projectId: currentSelectedProject.id,
+        rating,
+        userLocation
+      });
+      
+      toast({
+        title: "Rating submitted",
+        description: userLocation ? "Your rating has been submitted with location verification." : "Your rating has been submitted."
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to submit rating",
+        description: "Please try again later.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getRatingIcon = (rating: string) => {
+    switch (rating) {
+      case 'excellent':
+        return <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />;
+      case 'standard':
+        return <ThumbsUp className="h-4 w-4 text-green-500" />;
+      case 'sub-standard':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+      case 'ghost':
+        return <Ghost className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRatingColor = (rating: string) => {
+    switch (rating) {
+      case 'excellent':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200 hover:bg-yellow-100';
+      case 'standard':
+        return 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100';
+      case 'sub-standard':
+        return 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100';
+      case 'ghost':
+        return 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100';
+    }
+  };
 
   useEffect(() => {
     const initializeMap = () => {
@@ -337,6 +440,109 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                   <div className="mt-4">
                     <h4 className="font-medium text-foreground mb-2">Additional Details</h4>
                     <p className="text-sm text-muted-foreground">{currentSelectedProject.other_details}</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Rating Section */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium text-foreground">Rate this Project</h4>
+                  {!userLocation && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={getCurrentLocation}
+                      className="text-xs"
+                      data-testid="button-get-location"
+                    >
+                      <LocationIcon className="mr-1 h-3 w-3" />
+                      Get Location
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReactionClick('excellent')}
+                    disabled={addReaction.isPending}
+                    className={`${getRatingColor('excellent')} justify-start`}
+                    data-testid="button-rate-excellent"
+                  >
+                    <Star className="mr-2 h-4 w-4" fill="currentColor" />
+                    Excellent
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReactionClick('standard')}
+                    disabled={addReaction.isPending}
+                    className={`${getRatingColor('standard')} justify-start`}
+                    data-testid="button-rate-standard"
+                  >
+                    <ThumbsUp className="mr-2 h-4 w-4" />
+                    Standard
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReactionClick('sub-standard')}
+                    disabled={addReaction.isPending}
+                    className={`${getRatingColor('sub-standard')} justify-start`}
+                    data-testid="button-rate-substandard"
+                  >
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    Sub-standard
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReactionClick('ghost')}
+                    disabled={addReaction.isPending}
+                    className={`${getRatingColor('ghost')} justify-start`}
+                    data-testid="button-rate-ghost"
+                  >
+                    <Ghost className="mr-2 h-4 w-4" />
+                    Ghost Project
+                  </Button>
+                </div>
+                
+                {userLocation && (
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center">
+                    <LocationIcon className="mr-1 h-3 w-3" />
+                    Location captured for proximity verification
+                  </p>
+                )}
+                
+                {!isAuthenticated && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Please sign in to rate projects
+                  </p>
+                )}
+                
+                {/* Show existing reactions count */}
+                {reactions.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {reactions.length} reaction{reactions.length > 1 ? 's' : ''}
+                    </p>
+                    <div className="flex gap-2 flex-wrap">
+                      {['excellent', 'standard', 'sub-standard', 'ghost'].map(rating => {
+                        const count = reactions.filter(r => r.rating === rating).length;
+                        if (count === 0) return null;
+                        return (
+                          <div key={rating} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${getRatingColor(rating)}`}>
+                            {getRatingIcon(rating)}
+                            <span>{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
