@@ -201,8 +201,11 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
   const updateMapMarkers = () => {
     if (!map || !window.google || !window.google.maps) {
+      console.log('Map not ready for marker update');
       return;
     }
+
+    console.log('Updating map markers with', projects.length, 'projects');
 
     // Clear existing markers and circles
     if ((window as any).currentMarkers) {
@@ -312,6 +315,10 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       map.setCenter(selectedLocation);
       map.setZoom(12);
       setCurrentSelectedProject(selectedProject);
+    } else if (showAllProjects && projectsToDisplay.length > 0) {
+      // Reset to Philippines center when showing all projects
+      map.setCenter({ lat: 12.8797, lng: 121.7740 });
+      map.setZoom(6);
     }
   };
 
@@ -346,103 +353,6 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         );
 
         setMap(mapInstance);
-
-        // Filter projects to display based on mode
-        const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
-        
-        // Clear existing circles
-        projectCircles.forEach(circle => circle.setMap(null));
-        setProjectCircles([]);
-        
-        // Add markers for projects
-        const newCircles: any[] = [];
-        projectsToDisplay.forEach((project) => {
-          const projectLat = parseFloat(project.latitude);
-          const projectLng = parseFloat(project.longitude);
-          
-          // Determine marker color based on proximity to user location (500m for rating eligibility)
-          let canRate = false;
-          if (userLocation && showCurrentLocation) {
-            const distance = calculateDistance(userLocation.latitude, userLocation.longitude, projectLat, projectLng);
-            canRate = distance <= 0.5; // 500 meters
-          }
-          
-          // Create marker with appropriate color
-          const markerColor = selectedProject?.id === project.id ? '#FF4444' :
-                             canRate ? '#22C55E' : // Green for can rate
-                             showCurrentLocation ? '#EF4444' : '#3B82F6'; // Red for can't rate, blue for default
-          
-          const marker = new window.google.maps.Marker({
-            position: { lat: projectLat, lng: projectLng },
-            map: mapInstance,
-            title: project.projectname,
-            icon: {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
-                '<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">' +
-                '<path d="M12 0C5.4 0 0 5.4 0 12s12 24 12 24 12-17.6 12-24S18.6 0 12 0z" fill="' + markerColor + '"/>' +
-                '<circle cx="12" cy="12" r="6" fill="white"/>' +
-                '</svg>'
-              ),
-              scaledSize: new window.google.maps.Size(24, 36)
-            },
-          });
-
-          marker.addListener('click', () => {
-            setCurrentSelectedProject(project);
-          });
-          
-          // Add 10km radius circle when location is shown
-          if (showCurrentLocation && userLocation) {
-            const circle = new window.google.maps.Circle({
-              strokeColor: canRate ? '#22C55E' : '#EF4444',
-              strokeOpacity: 0.6,
-              strokeWeight: 2,
-              fillColor: canRate ? '#22C55E' : '#EF4444',
-              fillOpacity: 0.1,
-              map: mapInstance,
-              center: { lat: projectLat, lng: projectLng },
-              radius: 10000, // 10km in meters
-            });
-            newCircles.push(circle);
-          }
-        });
-        
-        setProjectCircles(newCircles);
-        
-        // Add user location marker if enabled
-        if (userLocationMarker) {
-          userLocationMarker.setMap(null);
-          setUserLocationMarker(null);
-        }
-        
-        if (showCurrentLocation && userLocation) {
-          const userMarker = new window.google.maps.Marker({
-            position: { lat: userLocation.latitude, lng: userLocation.longitude },
-            map: mapInstance,
-            title: 'Your Location',
-            icon: {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
-                '<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">' +
-                '<circle cx="10" cy="10" r="8" fill="#3B82F6" stroke="white" stroke-width="2"/>' +
-                '<circle cx="10" cy="10" r="3" fill="white"/>' +
-                '</svg>'
-              ),
-              scaledSize: new window.google.maps.Size(20, 20)
-            },
-          });
-          setUserLocationMarker(userMarker);
-        }
-
-        // Center on selected project if provided
-        if (selectedProject && selectedProject.latitude && selectedProject.longitude) {
-          const selectedLocation = {
-            lat: parseFloat(selectedProject.latitude),
-            lng: parseFloat(selectedProject.longitude)
-          };
-          mapInstance.setCenter(selectedLocation);
-          mapInstance.setZoom(12);
-          setCurrentSelectedProject(selectedProject);
-        }
       }
     };
 
@@ -463,8 +373,13 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
   // Update markers when filters or data change
   useEffect(() => {
-    if (map) {
-      updateMapMarkers();
+    if (map && projects.length >= 0) {
+      // Add a small delay to ensure the map is fully ready
+      const timer = setTimeout(() => {
+        updateMapMarkers();
+      }, 50);
+      
+      return () => clearTimeout(timer);
     }
   }, [map, projects, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
 
@@ -640,16 +555,25 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           {/* Google Maps Container */}
           <div 
             id="map-container" 
-            className="h-[600px] w-full"
+            className="h-[600px] w-full relative"
             data-testid="map-container"
           >
             {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && !process.env.GOOGLE_MAPS_API_KEY && (
-              <div className="flex items-center justify-center h-full bg-muted/30">
+              <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
                 <div className="text-center text-muted-foreground">
                   <MapPin className="mx-auto h-12 w-12 mb-4" />
                   <p className="text-lg font-medium">Google Maps Integration</p>
                   <p className="text-sm">Please add your Google Maps API key to environment variables</p>
                   <p className="text-xs mt-2">VITE_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY</p>
+                </div>
+              </div>
+            )}
+            {projects.length === 0 && !isLoading && (
+              <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
+                <div className="text-center text-muted-foreground">
+                  <MapPin className="mx-auto h-12 w-12 mb-4" />
+                  <p className="text-lg font-medium">No Projects Found</p>
+                  <p className="text-sm">Try adjusting your filters to see projects on the map</p>
                 </div>
               </div>
             )}
