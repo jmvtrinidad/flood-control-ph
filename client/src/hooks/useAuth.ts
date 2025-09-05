@@ -27,20 +27,30 @@ export function useLogout() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: () => apiRequest('/api/auth/logout', { method: 'POST' }),
+    mutationFn: () => apiRequest('POST', '/api/auth/logout'),
     onSuccess: () => {
+      // Clear all auth-related data from cache
       queryClient.setQueryData(['/api/auth/user'], null);
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.removeQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.clear(); // Clear all cached data
+      // Redirect to root to fully clear state
+      window.location.href = '/';
     },
+    onError: (error) => {
+      console.error('Logout error:', error);
+      // Even if logout fails on server, clear client state
+      queryClient.setQueryData(['/api/auth/user'], null);
+      queryClient.removeQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.clear();
+      // Still redirect to clear state
+      window.location.href = '/';
+    }
   });
 }
 
 export function useUpdateLocation() {
   return useMutation({
     mutationFn: (location: { latitude: number; longitude: number; address?: string }) =>
-      apiRequest('/api/user/location', {
-        method: 'POST',
-        body: JSON.stringify(location),
-      }),
+      apiRequest('POST', '/api/user/location', location),
   });
 }

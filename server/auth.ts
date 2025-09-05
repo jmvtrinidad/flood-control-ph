@@ -13,6 +13,7 @@ export function setupSession(app: Express) {
   const PgSession = connectPg(session);
   
   app.use(session({
+    name: 'connect.sid', // Explicitly set session cookie name
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
@@ -23,6 +24,8 @@ export function setupSession(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === 'production', // Use secure cookies in production with HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      httpOnly: true, // Prevent XSS attacks
+      sameSite: 'lax', // CSRF protection
     },
   }));
 }
@@ -161,7 +164,15 @@ export function setupAuthRoutes(app: Express) {
       if (err) {
         return res.status(500).json({ error: 'Logout failed' });
       }
-      res.json({ success: true });
+      // Destroy the session to fully log out
+      req.session.destroy((sessionErr) => {
+        if (sessionErr) {
+          return res.status(500).json({ error: 'Session destruction failed' });
+        }
+        // Clear the session cookie
+        res.clearCookie('connect.sid');
+        res.json({ success: true });
+      });
     });
   });
 
