@@ -2,15 +2,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { ProjectFilters } from '@/types/project';
+import type { ProjectFilters, Project } from '@/types/project';
 
 interface FilterSidebarProps {
   filters: ProjectFilters;
   onFiltersChange: (filters: Partial<ProjectFilters>) => void;
   onClearFilters: () => void;
+  projects?: Project[];
 }
 
-export function FilterSidebar({ filters, onFiltersChange, onClearFilters }: FilterSidebarProps) {
+export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [] }: FilterSidebarProps) {
+  // Get unique locations from projects data
+  const uniqueLocations = Array.from(new Set(projects.map(p => p.location))).sort();
 
   return (
     <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
@@ -124,6 +127,27 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters }: Filt
               <SelectItem value="2021">2021</SelectItem>
               <SelectItem value="2020">2020</SelectItem>
               <SelectItem value="2019">2019</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Location Filter */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Location</Label>
+          <Select
+            value={filters.location || ''}
+            onValueChange={(value) => onFiltersChange({ location: value === 'all' ? undefined : value })}
+          >
+            <SelectTrigger data-testid="select-location">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {uniqueLocations.map(location => (
+                <SelectItem key={location} value={location}>
+                  {location}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

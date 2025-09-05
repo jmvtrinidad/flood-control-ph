@@ -14,11 +14,12 @@ interface OverviewTabProps {
   isLoading: boolean;
   filters?: ProjectFilters;
   onLocationClick?: (location: string) => void;
+  onRegionClick?: (region: string) => void;
 }
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-export function OverviewTab({ projects, isLoading, filters, onLocationClick }: OverviewTabProps) {
+export function OverviewTab({ projects, isLoading, filters, onLocationClick, onRegionClick }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   
@@ -206,10 +207,11 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick }: O
                     if (data && data.activePayload && data.activePayload[0]) {
                       const clickedItem = data.activePayload[0].payload;
                       if (!selectedRegion) {
-                        // Click on region - show locations
+                        // Click on region - show locations and update sidebar filter
                         setSelectedRegion(clickedItem.fullName);
+                        onRegionClick?.(clickedItem.fullName);
                       } else {
-                        // Click on location - redirect to data table
+                        // Click on location - update sidebar filter and redirect to data table
                         onLocationClick?.(clickedItem.fullName);
                       }
                     }

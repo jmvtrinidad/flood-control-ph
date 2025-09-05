@@ -45,10 +45,15 @@ export default function Dashboard() {
     setActiveTab('data-table');
   };
 
+  const handleRegionClick = (region: string) => {
+    updateFilters({ region });
+    setActiveTab('data-table');
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab projects={projects} isLoading={isLoading} filters={combinedFilters} onLocationClick={handleLocationClick} />;
+        return <OverviewTab projects={projects} isLoading={isLoading} filters={combinedFilters} onLocationClick={handleLocationClick} onRegionClick={handleRegionClick} />;
       case 'data-table':
         return <DataTableTab projects={projects} isLoading={isLoading} filters={combinedFilters} onViewOnMap={handleViewOnMap} />;
       case 'analytics':
@@ -72,6 +77,7 @@ export default function Dashboard() {
           filters={filters}
           onFiltersChange={updateFilters}
           onClearFilters={clearFilters}
+          projects={projects}
         />
         
         <main className="flex-1 overflow-hidden">
