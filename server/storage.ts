@@ -179,14 +179,32 @@ export class MemStorage implements IStorage {
   async createProjects(insertProjects: InsertProject[]): Promise<Project[]> {
     const createdProjects: Project[] = [];
     
-    // Clear existing projects from both memory and database to ensure sync
+    // For bulk loading, check if database is empty to avoid deleting existing data
     if (insertProjects.length > 500) {
-      console.log('Bulk loading detected, clearing existing data to ensure sync...');
-      this.projects.clear();
+      console.log('Bulk loading detected, checking database status...');
+      
       try {
-        await db.delete(projects);
+        const existingCount = await db.select().from(projects);
+        
+        if (existingCount.length > 0) {
+          console.log(`Database already contains ${existingCount.length} projects, loading from database to sync with memory...`);
+          
+          // Clear memory and load existing projects from database
+          this.projects.clear();
+          for (const existingProject of existingCount) {
+            this.projects.set(existingProject.id, existingProject);
+            createdProjects.push(existingProject);
+          }
+          
+          console.log(`Synchronized ${existingCount.length} existing projects from database to memory`);
+          return createdProjects;
+        } else {
+          console.log('Database is empty, proceeding with bulk insert...');
+          this.projects.clear();
+        }
       } catch (error) {
-        console.warn('Failed to clear database projects:', error);
+        console.warn('Failed to check database status:', error);
+        this.projects.clear();
       }
     }
     
