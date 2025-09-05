@@ -54,8 +54,8 @@ export async function setupPassport(app: Express) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID!,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    callbackURL: process.env.NODE_ENV === 'production' 
-      ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/google/callback`
+    callbackURL: process.env.REPLIT_DOMAINS 
+      ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/google/callback`
       : '/api/auth/google/callback'
   }, async (accessToken, refreshToken, profile, done) => {
     try {
@@ -97,8 +97,8 @@ export async function setupPassport(app: Express) {
       passport.use(new FacebookStrategy({
         clientID: process.env.FACEBOOK_APP_ID!,
         clientSecret: process.env.FACEBOOK_APP_SECRET!,
-        callbackURL: process.env.NODE_ENV === 'production' 
-          ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/facebook/callback`
+        callbackURL: process.env.REPLIT_DOMAINS 
+          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/facebook/callback`
           : '/api/auth/facebook/callback',
         profileFields: ['id', 'displayName', 'photos', 'email']
       }, async (accessToken, refreshToken, profile, done) => {
