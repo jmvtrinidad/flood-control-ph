@@ -24,7 +24,7 @@ export function setupSession(app: Express) {
       createTableIfMissing: true,
       tableName: 'session', // Explicit table name
     }),
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || 'default-development-secret',
     resave: false,
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
@@ -84,10 +84,11 @@ export async function setupPassport(app: Express) {
     }
   });
 
-  // Google OAuth Strategy
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  // Google OAuth Strategy (only if credentials are available)
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     callbackURL: process.env.REPLIT_DOMAINS 
       ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/google/callback`
       : process.env.NODE_ENV === 'production'
@@ -118,6 +119,7 @@ export async function setupPassport(app: Express) {
       return done(error, undefined);
     }
   }));
+  }
 
   // Check if Facebook login is enabled
   try {
@@ -263,17 +265,19 @@ export async function setupAuthRoutes(app: Express) {
     console.error('Error checking Twitter login setting for routes:', error);
     isTwitterEnabled = false;
   }
-  // Google OAuth routes
-  app.get('/api/auth/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
-  );
+  // Google OAuth routes (only if credentials are available)
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    app.get('/api/auth/google',
+      passport.authenticate('google', { scope: ['profile', 'email'] })
+    );
 
-  app.get('/api/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
-    (req, res) => {
-      res.redirect('/');
-    }
-  );
+    app.get('/api/auth/google/callback',
+      passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
+      (req, res) => {
+        res.redirect('/');
+      }
+    );
+  }
 
   // Facebook OAuth routes (only if enabled)
   if (isFacebookEnabled && process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
