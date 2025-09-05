@@ -343,7 +343,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
         // Don't recreate map if it already exists
         if (map) {
-          updateMapMarkers();
+          console.log('Map already exists, skipping initialization');
           return;
         }
 
@@ -359,16 +359,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         );
 
         setMap(mapInstance);
-        
-        // Ensure map is visible and trigger resize
-        setTimeout(() => {
-          if (mapInstance && window.google && window.google.maps) {
-            window.google.maps.event.trigger(mapInstance, 'resize');
-            // Ensure map is centered
-            mapInstance.setCenter({ lat: 12.8797, lng: 121.7740 });
-            console.log('Map initialized and centered');
-          }
-        }, 200);
+        console.log('New map instance created');
       }
     };
 
@@ -393,26 +384,30 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       // Add a small delay to ensure the map is fully ready and prevent rapid updates
       const timer = setTimeout(() => {
         updateMapMarkers();
-        // Trigger resize to ensure proper rendering after data changes
-        if (window.google && window.google.maps) {
-          window.google.maps.event.trigger(map, 'resize');
-        }
       }, 150);
       
       return () => clearTimeout(timer);
     }
   }, [map, projects, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
 
+  // Separate effect to handle initial map setup only
+  useEffect(() => {
+    if (map) {
+      // This only runs once when map is first created
+      setTimeout(() => {
+        if (window.google && window.google.maps) {
+          window.google.maps.event.trigger(map, 'resize');
+          map.setCenter({ lat: 12.8797, lng: 121.7740 });
+          console.log('Initial map setup completed');
+        }
+      }, 300);
+    }
+  }, [map]); // Only runs when map instance changes
+
   // Handle map style changes separately
   useEffect(() => {
     if (map && mapStyle) {
       map.setMapTypeId(mapStyle);
-      // Trigger resize after style change
-      setTimeout(() => {
-        if (window.google && window.google.maps) {
-          window.google.maps.event.trigger(map, 'resize');
-        }
-      }, 50);
     }
   }, [map, mapStyle]);
 
@@ -427,12 +422,6 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     if (map) {
       map.setCenter({ lat: 12.8797, lng: 121.7740 });
       map.setZoom(6);
-      // Trigger resize to ensure proper rendering
-      setTimeout(() => {
-        if (window.google && window.google.maps) {
-          window.google.maps.event.trigger(map, 'resize');
-        }
-      }, 100);
     }
   };
 
