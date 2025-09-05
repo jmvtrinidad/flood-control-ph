@@ -7,6 +7,7 @@ import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { ContractorList } from './contractor-list';
+import { ProjectsByReactionsWidget } from './projects-by-reactions-widget';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Project, ProjectFilters } from '@/types/project';
 
@@ -251,7 +252,7 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
 
       </div>
 
-      {/* Recent Projects and Contractor List */}
+      {/* Recent Projects and Top Contractors */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card data-testid="recent-projects">
           <CardHeader>
@@ -304,6 +305,11 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
           useFullCost={useFullCost}
           onUseFullCostChange={setUseFullCost}
         />
+      </div>
+
+      {/* Projects by Reactions Widget */}
+      <div className="grid grid-cols-1 gap-6">
+        <ProjectsByReactionsWidget />
       </div>
     </div>
   );

@@ -291,6 +291,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Reaction routes
 
+  // Get projects with reaction summaries grouped by contractor
+  app.get("/api/projects/by-reactions", async (req, res) => {
+    try {
+      // Get all projects with their reaction summaries
+      const projectsWithReactions = await db
+        .select({
+          id: projects.id,
+          projectname: projects.projectname,
+          location: projects.location,
+          region: projects.region,
+          contractor: projects.contractor,
+          cost: projects.cost,
+          status: projects.status,
+          reactionId: reactions.id,
+          rating: reactions.rating,
+        })
+        .from(projects)
+        .leftJoin(reactions, eq(projects.id, reactions.projectId));
+
+      // Group by project and calculate reaction scores
+      const projectMap = new Map();
+      
+      projectsWithReactions.forEach(row => {
+        if (!projectMap.has(row.id)) {
+          projectMap.set(row.id, {
+            id: row.id,
+            projectname: row.projectname,
+            location: row.location,
+            region: row.region,
+            contractor: row.contractor,
+            cost: row.cost,
+            status: row.status,
+            reactions: [],
+            reactionScore: 0,
+            reactionCount: 0
+          });
+        }
+        
+        if (row.reactionId && row.rating) {
+          const project = projectMap.get(row.id);
+          project.reactions.push(row.rating);
+          
+          // Calculate reaction score (excellent=4, standard=3, sub-standard=2, ghost=1)
+          const scores: Record<string, number> = { 'excellent': 4, 'standard': 3, 'sub-standard': 2, 'ghost': 1 };
+          project.reactionScore += scores[row.rating as string] || 0;
+          project.reactionCount++;
+        }
+      });
+
+      // Convert to array and calculate average scores
+      const projectsArray = Array.from(projectMap.values()).map(project => ({
+        ...project,
+        averageReactionScore: project.reactionCount > 0 ? project.reactionScore / project.reactionCount : 0
+      }));
+
+      // Group by contractor and sort by reaction scores
+      const contractorGroups: Record<string, any[]> = {};
+      projectsArray.forEach((project: any) => {
+        if (!contractorGroups[project.contractor]) {
+          contractorGroups[project.contractor] = [];
+        }
+        contractorGroups[project.contractor].push(project);
+      });
+
+      // Sort projects within each contractor group by reaction score
+      Object.keys(contractorGroups).forEach(contractor => {
+        contractorGroups[contractor].sort((a: any, b: any) => b.averageReactionScore - a.averageReactionScore);
+      });
+
+      // Sort contractors by their best project's reaction score
+      const sortedContractors = Object.keys(contractorGroups)
+        .map(contractor => ({
+          contractor,
+          projects: contractorGroups[contractor],
+          bestScore: contractorGroups[contractor][0]?.averageReactionScore || 0
+        }))
+        .sort((a, b) => b.bestScore - a.bestScore);
+
+      res.json(sortedContractors);
+    } catch (error) {
+      console.error('Error fetching projects by reactions:', error);
+      res.status(500).json({ error: "Failed to fetch projects by reactions" });
+    }
+  });
+
   // Get reactions for a project
   app.get("/api/projects/:projectId/reactions", async (req, res) => {
     try {
