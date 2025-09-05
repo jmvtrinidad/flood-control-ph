@@ -88,6 +88,32 @@ export default function Dashboard() {
           
           <div className="h-[calc(100vh-140px)] overflow-y-auto bg-background">
             {renderTabContent()}
+            
+            {/* Disclaimer Footer */}
+            <div className="border-t border-border bg-card/30 px-6 py-4 mt-8">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Disclaimer:</span> Please verify information from{' '}
+                  <a 
+                    href="https://sumbongsapangulo.ph" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    sumbongsapangulo.ph
+                  </a>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  For updates, email:{' '}
+                  <a 
+                    href="mailto:infloodcontrolph@gmail.com"
+                    className="text-primary hover:underline"
+                  >
+                    infloodcontrolph@gmail.com
+                  </a>
+                </p>
+              </div>
+            </div>
           </div>
         </main>
       </div>
