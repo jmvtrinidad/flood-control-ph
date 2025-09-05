@@ -295,8 +295,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             const distance = R * c; // Distance in km
 
-            // Consider verified if within 10km
-            isProximityVerified = distance <= 10;
+            // Consider verified if within 500 meters (0.5km)
+            isProximityVerified = distance <= 0.5;
           }
         } catch (proximityError) {
           console.error('Failed to calculate proximity:', proximityError);
@@ -428,8 +428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Math.pow(projectLat - userLat, 2) + Math.pow(projectLng - userLng, 2)
       );
 
-      // Consider verified if within ~0.1 degrees (roughly 10km)
-      const isProximityVerified = distance < 0.1;
+      // Consider verified if within ~0.005 degrees (roughly 500 meters)
+      const isProximityVerified = distance < 0.005;
 
       // Update reaction
       const updatedReaction = await db.update(reactions)
