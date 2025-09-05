@@ -8,6 +8,7 @@ import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { ContractorList } from './contractor-list';
 import { ProjectsByReactionsWidget } from './projects-by-reactions-widget';
+import { UserLeaderboardWidget } from './user-leaderboard-widget';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Project, ProjectFilters } from '@/types/project';
 
@@ -307,9 +308,10 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
         />
       </div>
 
-      {/* Projects by Reactions Widget */}
-      <div className="grid grid-cols-1 gap-6">
+      {/* Projects by Reactions and User Leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ProjectsByReactionsWidget />
+        <UserLeaderboardWidget />
       </div>
     </div>
   );

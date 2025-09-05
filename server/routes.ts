@@ -19,7 +19,7 @@ import {
 } from "./auth";
 import { db } from "./db";
 import { reactions, userLocations, users } from "@shared/schema";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import multer from "multer";
 import { z } from "zod";
 
@@ -745,6 +745,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(csvRows.join("\n"));
     } catch (error) {
       res.status(500).json({ error: "Failed to export CSV" });
+    }
+  });
+
+  // Get user leaderboard by reaction count
+  app.get("/api/users/leaderboard", async (req, res) => {
+    try {
+      const userLeaderboard = await db
+        .select({
+          user: {
+            id: users.id,
+            name: users.name,
+            username: users.username,
+            avatar: users.avatar,
+            provider: users.provider,
+          },
+          reactionCount: sql<number>`count(${reactions.id})`.as('reaction_count'),
+        })
+        .from(users)
+        .leftJoin(reactions, eq(users.id, reactions.userId))
+        .groupBy(users.id, users.name, users.username, users.avatar, users.provider)
+        .having(sql`count(${reactions.id}) > 0`)
+        .orderBy(sql`count(${reactions.id}) DESC`)
+        .limit(20);
+
+      res.json(userLeaderboard);
+    } catch (error) {
+      console.error('Error fetching user leaderboard:', error);
+      res.status(500).json({ error: "Failed to fetch user leaderboard" });
+    }
+  });
+
+  // Get detailed reactions for a specific user
+  app.get("/api/users/:userId/reactions", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const userReactions = await db
+        .select({
+          id: reactions.id,
+          rating: reactions.rating,
+          comment: reactions.comment,
+          isProximityVerified: reactions.isProximityVerified,
+          createdAt: reactions.created_at,
+          project: {
+            id: projects.id,
+            projectName: projects.projectname,
+            contractor: projects.contractor,
+            region: projects.region,
+            location: projects.location,
+            cost: projects.cost,
+          },
+        })
+        .from(reactions)
+        .leftJoin(projects, eq(reactions.projectId, projects.id))
+        .where(eq(reactions.userId, userId))
+        .orderBy(desc(reactions.created_at));
+
+      res.json(userReactions);
+    } catch (error) {
+      console.error('Error fetching user reactions:', error);
+      res.status(500).json({ error: "Failed to fetch user reactions" });
     }
   });
 
