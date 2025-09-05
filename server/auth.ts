@@ -206,7 +206,7 @@ export async function setupPassport(app: Express) {
           // Create new user
           const newUser = await db.insert(users).values({
             email: profile.emails?.[0]?.value || '',
-            name: profile.displayName || profile.username || '',
+            name: profile.displayName || '',
             avatar: profile.photos?.[0]?.value || '',
             provider: 'twitter',
             providerId: profile.id,
@@ -334,35 +334,22 @@ export async function setupAuthRoutes(app: Express) {
     }
   });
 
-  // Update user settings (username)
+  // Update user settings
   app.put('/api/auth/user/settings', requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { username } = req.body;
+      const { name } = req.body;
 
-      // Validate username
-      if (username && (username.length < 3 || username.length > 20)) {
-        return res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
-      }
-
-      // Check if username is already taken (if provided)
-      if (username) {
-        const existingUser = await db
-          .select()
-          .from(users)
-          .where(and(eq(users.username, username), not(eq(users.id, userId))))
-          .limit(1);
-
-        if (existingUser.length > 0) {
-          return res.status(400).json({ error: 'Username is already taken' });
-        }
+      // Validate name
+      if (name && (name.length < 1 || name.length > 50)) {
+        return res.status(400).json({ error: 'Name must be between 1 and 50 characters' });
       }
 
       // Update user
       const updatedUser = await db
         .update(users)
         .set({ 
-          username: username || null,
+          name: name || null,
           updated_at: new Date()
         })
         .where(eq(users.id, userId))
