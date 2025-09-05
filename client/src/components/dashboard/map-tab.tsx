@@ -205,6 +205,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       return;
     }
 
+    // Skip if projects is empty and loading, to prevent rapid updates
+    if (projects.length === 0 && isLoading) {
+      console.log('Skipping marker update - still loading projects');
+      return;
+    }
+
     console.log('Updating map markers with', projects.length, 'projects');
 
     // Clear existing markers and circles
@@ -354,12 +360,15 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
         setMap(mapInstance);
         
-        // Trigger resize to ensure proper rendering
+        // Ensure map is visible and trigger resize
         setTimeout(() => {
           if (mapInstance && window.google && window.google.maps) {
             window.google.maps.event.trigger(mapInstance, 'resize');
+            // Ensure map is centered
+            mapInstance.setCenter({ lat: 12.8797, lng: 121.7740 });
+            console.log('Map initialized and centered');
           }
-        }, 100);
+        }, 200);
       }
     };
 
@@ -380,15 +389,15 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
   // Update markers when filters or data change
   useEffect(() => {
-    if (map && projects.length >= 0) {
-      // Add a small delay to ensure the map is fully ready
+    if (map) {
+      // Add a small delay to ensure the map is fully ready and prevent rapid updates
       const timer = setTimeout(() => {
         updateMapMarkers();
         // Trigger resize to ensure proper rendering after data changes
         if (window.google && window.google.maps) {
           window.google.maps.event.trigger(map, 'resize');
         }
-      }, 100);
+      }, 150);
       
       return () => clearTimeout(timer);
     }
@@ -582,7 +591,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
             data-testid="map-container"
             style={{ minHeight: '600px' }}
           >
-            {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && !process.env.GOOGLE_MAPS_API_KEY && (
+{!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && !process.env.GOOGLE_MAPS_API_KEY && (
               <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
                 <div className="text-center text-muted-foreground">
                   <MapPin className="mx-auto h-12 w-12 mb-4" />
@@ -592,12 +601,11 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                 </div>
               </div>
             )}
-            {projects.length === 0 && !isLoading && map && (
-              <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
+            {isLoading && (
+              <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-5">
                 <div className="text-center text-muted-foreground">
-                  <MapPin className="mx-auto h-12 w-12 mb-4" />
-                  <p className="text-lg font-medium">No Projects Found</p>
-                  <p className="text-sm">Try adjusting your filters to see projects on the map</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm">Loading projects...</p>
                 </div>
               </div>
             )}
