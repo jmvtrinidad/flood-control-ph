@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, jsonb, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, timestamp, jsonb, boolean, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -100,7 +100,9 @@ export const reactions = pgTable("reactions", {
   isProximityVerified: boolean("is_proximity_verified").default(false),
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userProjectUnique: unique().on(table.userId, table.projectId)
+}));
 
 // Schema types
 export const insertUserSchema = createInsertSchema(users).omit({

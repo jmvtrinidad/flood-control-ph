@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowUpDown, Download, FileCode, MapPin, Eye, ChevronLeft, ChevronRight, Star, AlertTriangle, Ghost, ThumbsUp } from 'lucide-react';
 import { LoginModal } from '@/components/auth/login-modal';
 import { useAuth } from '@/hooks/useAuth';
-import { useAddReaction, useProjectReactions } from '@/hooks/useReactions';
+import { useAddReaction, useProjectReactions, useUserProjectReaction } from '@/hooks/useReactions';
 import type { Project, SortField, SortDirection } from '@/types/project';
 import { formatCurrency, formatNumber, sortProjects } from '@/lib/analytics';
 import { downloadCSV, downloadJSON, exportToCSVFromAPI } from '@/lib/export';
@@ -61,6 +61,37 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
         })}
         <span className="text-xs text-muted-foreground ml-1">({totalRatings})</span>
       </div>
+    );
+  };
+
+  // Component for rating buttons with current user rating highlighted
+  const RatingButtons = ({ projectId, onRate }: { projectId: string; onRate: (rating: string) => void }) => {
+    const userReaction = useUserProjectReaction(projectId, user?.id);
+    const currentRating = userReaction?.rating;
+
+    const ratings = [
+      { key: 'excellent', label: 'Excellent' },
+      { key: 'standard', label: 'Standard' },
+      { key: 'sub-standard', label: 'Sub-standard' },
+      { key: 'ghost', label: 'Ghost Project' }
+    ];
+
+    return (
+      <>
+        {ratings.map(({ key, label }) => (
+          <Button
+            key={key}
+            variant={currentRating === key ? "default" : "ghost"}
+            size="sm"
+            title={label}
+            onClick={() => onRate(key)}
+            data-testid={`button-${key}-${projectId}`}
+            className={currentRating === key ? getRatingColor(key) : ""}
+          >
+            {getRatingIcon(key)}
+          </Button>
+        ))}
+      </>
     );
   };
 
@@ -337,42 +368,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                     <TableCell>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Excellent"
-                            onClick={() => handleReactionClick(project, 'excellent')}
-                            data-testid={`button-excellent-${project.id}`}
-                          >
-                            {getRatingIcon('excellent')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Standard"
-                            onClick={() => handleReactionClick(project, 'standard')}
-                            data-testid={`button-standard-${project.id}`}
-                          >
-                            {getRatingIcon('standard')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Sub-standard"
-                            onClick={() => handleReactionClick(project, 'sub-standard')}
-                            data-testid={`button-sub-standard-${project.id}`}
-                          >
-                            {getRatingIcon('sub-standard')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Ghost Project"
-                            onClick={() => handleReactionClick(project, 'ghost')}
-                            data-testid={`button-ghost-${project.id}`}
-                          >
-                            {getRatingIcon('ghost')}
-                          </Button>
+                          <RatingButtons projectId={project.id} onRate={(rating) => handleReactionClick(project, rating)} />
                         </div>
                         <ProjectRatings projectId={project.id} />
                       </div>

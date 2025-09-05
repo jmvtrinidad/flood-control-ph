@@ -22,6 +22,14 @@ export function useProjectReactions(projectId: string) {
   });
 }
 
+export function useUserProjectReaction(projectId: string, userId?: string) {
+  const { data: reactions = [] } = useProjectReactions(projectId);
+  
+  if (!userId) return null;
+  
+  return reactions.find(reaction => reaction.user.id === userId) || null;
+}
+
 export function useAddReaction() {
   const queryClient = useQueryClient();
 

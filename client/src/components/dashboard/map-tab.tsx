@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAddReaction, useProjectReactions } from '@/hooks/useReactions';
+import { useAddReaction, useProjectReactions, useUserProjectReaction } from '@/hooks/useReactions';
 import { useAuth } from '@/hooks/useAuth';
 import type { Project } from '@/types/project';
 import { formatCurrency } from '@/lib/analytics';
@@ -30,9 +30,41 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const addReaction = useAddReaction();
   const { data: reactions = [] } = useProjectReactions(currentSelectedProject?.id || '');
+
+  // Component for rating buttons with current user rating highlighted
+  const ProjectRatingButtons = ({ projectId }: { projectId: string }) => {
+    const userReaction = useUserProjectReaction(projectId, user?.id);
+    const currentRating = userReaction?.rating;
+
+    const ratings = [
+      { key: 'excellent', label: 'Excellent', icon: Star },
+      { key: 'standard', label: 'Standard', icon: ThumbsUp },
+      { key: 'sub-standard', label: 'Sub-standard', icon: AlertTriangle },
+      { key: 'ghost', label: 'Ghost Project', icon: Ghost }
+    ];
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {ratings.map(({ key, label, icon: Icon }) => (
+          <Button
+            key={key}
+            variant={currentRating === key ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleReactionClick(key)}
+            disabled={addReaction.isPending}
+            className={`justify-start ${currentRating === key ? getRatingColor(key) : getRatingColor(key)}`}
+            data-testid={`button-rate-${key.replace('-', '')}`}
+          >
+            <Icon className="mr-2 h-4 w-4" fill={key === 'excellent' ? 'currentColor' : 'none'} />
+            {label}
+          </Button>
+        ))}
+      </div>
+    );
+  };
 
   // Update showAllProjects state when selectedProject changes
   useEffect(() => {
@@ -462,55 +494,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                   )}
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReactionClick('excellent')}
-                    disabled={addReaction.isPending}
-                    className={`${getRatingColor('excellent')} justify-start`}
-                    data-testid="button-rate-excellent"
-                  >
-                    <Star className="mr-2 h-4 w-4" fill="currentColor" />
-                    Excellent
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReactionClick('standard')}
-                    disabled={addReaction.isPending}
-                    className={`${getRatingColor('standard')} justify-start`}
-                    data-testid="button-rate-standard"
-                  >
-                    <ThumbsUp className="mr-2 h-4 w-4" />
-                    Standard
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReactionClick('sub-standard')}
-                    disabled={addReaction.isPending}
-                    className={`${getRatingColor('sub-standard')} justify-start`}
-                    data-testid="button-rate-substandard"
-                  >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Sub-standard
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReactionClick('ghost')}
-                    disabled={addReaction.isPending}
-                    className={`${getRatingColor('ghost')} justify-start`}
-                    data-testid="button-rate-ghost"
-                  >
-                    <Ghost className="mr-2 h-4 w-4" />
-                    Ghost Project
-                  </Button>
-                </div>
+                <ProjectRatingButtons projectId={currentSelectedProject.id} />
                 
                 {userLocation && (
                   <p className="text-xs text-muted-foreground mt-2 flex items-center">
