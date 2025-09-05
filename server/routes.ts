@@ -390,7 +390,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user: {
             id: users.id,
             name: users.name,
-            username: users.username,
             avatar: users.avatar,
             isLocationVerified: users.isLocationVerified,
           },
