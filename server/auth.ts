@@ -7,7 +7,7 @@ import connectPg from 'connect-pg-simple';
 import type { Express, Request, Response, NextFunction } from 'express';
 import { users, insertUserSchema, settings } from '@shared/schema';
 import { db } from './db';
-import { eq } from 'drizzle-orm';
+import { eq, and, not } from 'drizzle-orm';
 
 // Session configuration
 export function setupSession(app: Express) {
@@ -331,6 +331,47 @@ export async function setupAuthRoutes(app: Express) {
       res.json(req.user);
     } else {
       res.status(401).json({ error: 'Not authenticated' });
+    }
+  });
+
+  // Update user settings (username)
+  app.put('/api/auth/user/settings', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { username } = req.body;
+
+      // Validate username
+      if (username && (username.length < 3 || username.length > 20)) {
+        return res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+      }
+
+      // Check if username is already taken (if provided)
+      if (username) {
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(and(eq(users.username, username), not(eq(users.id, userId))))
+          .limit(1);
+
+        if (existingUser.length > 0) {
+          return res.status(400).json({ error: 'Username is already taken' });
+        }
+      }
+
+      // Update user
+      const updatedUser = await db
+        .update(users)
+        .set({ 
+          username: username || null,
+          updated_at: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json(updatedUser[0]);
+    } catch (error) {
+      console.error('Error updating user settings:', error);
+      res.status(500).json({ error: 'Failed to update user settings' });
     }
   });
 }

@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button';
-import { Moon, Sun, User, LogOut } from 'lucide-react';
+import { Moon, Sun, User, LogOut, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { UserSettingsModal } from '@/components/auth/user-settings-modal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/hooks/use-theme';
@@ -15,6 +17,7 @@ export function DashboardHeader() {
   const logout = useLogout();
   const { settings } = useAuthSettings();
   const isMobile = useIsMobile();
+  const [showUserSettings, setShowUserSettings] = useState(false);
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -73,6 +76,14 @@ export function DashboardHeader() {
                         )}
                       </div>
                     </div>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setShowUserSettings(true)}
+                      data-testid="button-user-settings"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer"
                       onClick={() => logout.mutate()}
@@ -192,6 +203,13 @@ export function DashboardHeader() {
           </div>
         </div>
       </div>
+      
+      {/* User Settings Modal */}
+      <UserSettingsModal 
+        isOpen={showUserSettings}
+        onClose={() => setShowUserSettings(false)}
+        user={user}
+      />
     </header>
   );
 }

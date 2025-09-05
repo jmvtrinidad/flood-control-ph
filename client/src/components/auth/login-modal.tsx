@@ -3,11 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthSettings } from '@/hooks/useAuthSettings';
+import { UserSettingsModal } from './user-settings-modal';
+import { Settings } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   message?: string;
+}
+
+interface AuthenticatedLoginModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: any;
 }
 
 export function LoginModal({ isOpen, onClose, message = "Please log in to rate and comment on projects" }: LoginModalProps) {
