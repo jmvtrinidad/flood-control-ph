@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Search } from 'lucide-react';
 import type { ProjectFilters, Project } from '@/types/project';
 import { useContractors } from '@/hooks/use-contractors';
+import { useFiscalYears } from '@/hooks/use-fiscal-years';
 
 interface FilterSidebarProps {
   filters: ProjectFilters;
@@ -19,6 +20,7 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projec
   // Get unique locations from projects data
   const uniqueLocations = Array.from(new Set(projects.map(p => p.location))).sort();
   const { data: contractors, isLoading: contractorsLoading } = useContractors();
+  const { data: fiscalYears, isLoading: fiscalYearsLoading } = useFiscalYears();
 
   return (
     <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
@@ -146,12 +148,15 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projec
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Years</SelectItem>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
-              <SelectItem value="2021">2021</SelectItem>
-              <SelectItem value="2020">2020</SelectItem>
-              <SelectItem value="2019">2019</SelectItem>
+              {fiscalYearsLoading ? (
+                <SelectItem value="loading" disabled>Loading...</SelectItem>
+              ) : (
+                fiscalYears?.map((fiscalYear) => (
+                  <SelectItem key={fiscalYear} value={fiscalYear}>
+                    {fiscalYear}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>

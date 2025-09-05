@@ -60,6 +60,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all unique fiscal years from the database
+  app.get("/api/fiscal-years", async (req, res) => {
+    try {
+      const fiscalYears = await db
+        .selectDistinct({ fy: projects.fy })
+        .from(projects)
+        .where(sql`${projects.fy} IS NOT NULL AND ${projects.fy} != ''`)
+        .orderBy(sql`${projects.fy} DESC`);
+      
+      res.json(fiscalYears.map(row => row.fy));
+    } catch (error) {
+      console.error('Error fetching fiscal years:', error);
+      res.status(500).json({ error: "Failed to fetch fiscal years" });
+    }
+  });
+
   // Get projects with reaction summaries grouped by contractor
   app.get("/api/projects/by-reactions", async (req, res) => {
     try {
