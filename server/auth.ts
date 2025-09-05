@@ -21,7 +21,7 @@ export function setupSession(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production with HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   }));
@@ -51,7 +51,9 @@ export function setupPassport(app: Express) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID!,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    callbackURL: '/api/auth/google/callback'
+    callbackURL: process.env.NODE_ENV === 'production' 
+      ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/google/callback`
+      : '/api/auth/google/callback'
   }, async (accessToken, refreshToken, profile, done) => {
     try {
       // Check if user already exists
@@ -74,7 +76,7 @@ export function setupPassport(app: Express) {
 
       return done(null, newUser[0]);
     } catch (error) {
-      return done(error, null);
+      return done(error, undefined);
     }
   }));
 
@@ -82,7 +84,9 @@ export function setupPassport(app: Express) {
   passport.use(new FacebookStrategy({
     clientID: process.env.FACEBOOK_APP_ID!,
     clientSecret: process.env.FACEBOOK_APP_SECRET!,
-    callbackURL: '/api/auth/facebook/callback',
+    callbackURL: process.env.NODE_ENV === 'production' 
+      ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/facebook/callback`
+      : '/api/auth/facebook/callback',
     profileFields: ['id', 'displayName', 'photos', 'email']
   }, async (accessToken, refreshToken, profile, done) => {
     try {
@@ -106,7 +110,7 @@ export function setupPassport(app: Express) {
 
       return done(null, newUser[0]);
     } catch (error) {
-      return done(error, null);
+      return done(error, undefined);
     }
   }));
 }
