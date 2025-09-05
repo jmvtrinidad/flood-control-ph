@@ -645,6 +645,57 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                     </div>
                   </div>
                 )}
+                
+                {/* Share on X Button */}
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const generateTweetText = () => {
+                        const projectName = currentSelectedProject.projectname;
+                        const region = currentSelectedProject.region.replace(/\s+/g, '');
+                        const location = currentSelectedProject.location.replace(/\s+/g, '').replace(/,/g, '');
+                        const cost = formatCurrency(parseFloat(currentSelectedProject.cost));
+                        
+                        let tweetText = `📍 Infrastructure Project Alert! ${projectName} in ${currentSelectedProject.location} (${cost})`;
+                        
+                        // Add reaction data if available
+                        if (reactions.length > 0) {
+                          const excellentCount = reactions.filter(r => r.rating === 'excellent').length;
+                          const standardCount = reactions.filter(r => r.rating === 'standard').length;
+                          const subStandardCount = reactions.filter(r => r.rating === 'sub-standard').length;
+                          const ghostCount = reactions.filter(r => r.rating === 'ghost').length;
+                          
+                          tweetText += ` | Community Ratings: ${reactions.length} total`;
+                          if (excellentCount > 0) tweetText += ` - ${excellentCount} Excellent`;
+                          if (standardCount > 0) tweetText += ` - ${standardCount} Standard`;
+                          if (subStandardCount > 0) tweetText += ` - ${subStandardCount} Sub-standard`;
+                          if (ghostCount > 0) tweetText += ` - ${ghostCount} Ghost Projects`;
+                        }
+                        
+                        // Add hashtags
+                        tweetText += ` #${region} #${location} #FloodControlPH #InfrastructurePH`;
+                        
+                        // Add link to view data
+                        const dashboardUrl = window.location.origin;
+                        tweetText += ` | View project data: ${dashboardUrl}`;
+                        
+                        return encodeURIComponent(tweetText);
+                      };
+                      
+                      const tweetUrl = `https://x.com/intent/tweet?text=${generateTweetText()}`;
+                      window.open(tweetUrl, '_blank');
+                    }}
+                    className="w-full"
+                    data-testid="button-share-x"
+                  >
+                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/>
+                    </svg>
+                    Share Project on X
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
