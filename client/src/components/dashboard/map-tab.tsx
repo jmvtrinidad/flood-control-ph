@@ -675,11 +675,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                         }
                         
                         // Add hashtags
-                        tweetText += ` #${region} #${location} #FloodControlPH #InfrastructurePH`;
+                        tweetText += ` #${region} #${location} #FloodControlPH #DPWH #InfrastructurePH`;
                         
-                        // Add link to view data
+                        // Add link to view data with query params for direct map navigation
                         const dashboardUrl = window.location.origin;
-                        tweetText += ` | View project data: ${dashboardUrl}`;
+                        const projectParams = `?tab=map&project=${currentSelectedProject.id}&lat=${currentSelectedProject.latitude}&lng=${currentSelectedProject.longitude}`;
+                        tweetText += ` | View project: ${dashboardUrl}${projectParams}`;
                         
                         return encodeURIComponent(tweetText);
                       };

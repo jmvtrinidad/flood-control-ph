@@ -387,10 +387,35 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          title="View Details"
-                          data-testid={`button-details-${project.id}`}
+                          title="Share on X"
+                          onClick={() => {
+                            const generateTweetText = () => {
+                              const projectName = project.projectname;
+                              const region = project.region.replace(/\s+/g, '');
+                              const location = project.location.replace(/\s+/g, '').replace(/,/g, '');
+                              const cost = formatCurrency(parseFloat(project.cost));
+                              
+                              let tweetText = `📍 Infrastructure Project Alert! ${projectName} in ${project.location} (${cost})`;
+                              
+                              // Add hashtags
+                              tweetText += ` #${region} #${location} #FloodControlPH #DPWH #InfrastructurePH`;
+                              
+                              // Add link to view data with query params for direct map navigation
+                              const dashboardUrl = window.location.origin;
+                              const projectParams = `?tab=map&project=${project.id}&lat=${project.latitude}&lng=${project.longitude}`;
+                              tweetText += ` | View project: ${dashboardUrl}${projectParams}`;
+                              
+                              return encodeURIComponent(tweetText);
+                            };
+                            
+                            const tweetUrl = `https://x.com/intent/tweet?text=${generateTweetText()}`;
+                            window.open(tweetUrl, '_blank');
+                          }}
+                          data-testid={`button-share-x-${project.id}`}
                         >
-                          <Eye className="h-4 w-4" />
+                          <svg className="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/>
+                          </svg>
                         </Button>
                         <Button 
                           variant="ghost" 
