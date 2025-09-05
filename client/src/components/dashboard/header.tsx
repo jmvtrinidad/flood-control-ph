@@ -1,17 +1,13 @@
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Moon, Sun, User, LogOut } from 'lucide-react';
+import { Moon, Sun, User, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth, useLogout } from '@/hooks/useAuth';
 
-interface DashboardHeaderProps {
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-}
+interface DashboardHeaderProps {}
 
-export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeaderProps) {
+export function DashboardHeader() {
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user } = useAuth();
   const logout = useLogout();
@@ -33,21 +29,6 @@ export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeader
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
-            <div className="relative hidden md:block">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="w-80 pl-10"
-                placeholder="Search projects, locations, contractors..."
-                data-testid="input-search"
-              />
-            </div>
-            
             {/* Theme Toggle */}
             <Button
               variant="ghost"

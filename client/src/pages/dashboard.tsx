@@ -104,10 +104,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background" data-testid="dashboard">
-      <DashboardHeader 
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-      />
+      <DashboardHeader />
       
       <div className="flex h-[calc(100vh-80px)]">
         <FilterSidebar 
@@ -115,6 +112,8 @@ export default function Dashboard() {
           onFiltersChange={updateFilters}
           onClearFilters={clearFilters}
           projects={projects}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
         
         <main className="flex-1 overflow-hidden">

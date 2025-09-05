@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Search } from 'lucide-react';
 import type { ProjectFilters, Project } from '@/types/project';
 
 interface FilterSidebarProps {
@@ -9,9 +10,11 @@ interface FilterSidebarProps {
   onFiltersChange: (filters: Partial<ProjectFilters>) => void;
   onClearFilters: () => void;
   projects?: Project[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
-export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [] }: FilterSidebarProps) {
+export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [], searchQuery, onSearchChange }: FilterSidebarProps) {
   // Get unique locations from projects data
   const uniqueLocations = Array.from(new Set(projects.map(p => p.location))).sort();
 
@@ -28,6 +31,24 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projec
           >
             Clear All
           </Button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Search</Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10"
+              placeholder="Search projects, locations, contractors..."
+              data-testid="input-search"
+            />
+          </div>
         </div>
 
         {/* Cost Range Filter */}
