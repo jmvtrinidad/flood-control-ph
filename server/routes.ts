@@ -212,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const defaultSettings = [
         { key: 'facebook_login_enabled', value: true, description: 'Enable Facebook OAuth authentication' },
         { key: 'google_login_enabled', value: true, description: 'Enable Google OAuth authentication' },
-        { key: 'twitter_login_enabled', value: true, description: 'Enable Twitter/X OAuth authentication' }
+        { key: 'twitter_login_enabled', value: true, description: 'Enable X (formerly Twitter) OAuth authentication' }
       ];
 
       for (const setting of defaultSettings) {
