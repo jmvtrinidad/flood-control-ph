@@ -402,7 +402,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                               
                               // Add link to view data with query params for direct map navigation
                               const dashboardUrl = window.location.origin;
-                              const projectParams = `?tab=map&project=${project.id}&lat=${project.latitude}&lng=${project.longitude}`;
+                              const projectParams = `?search=${encodeURIComponent(project.projectname)}&tab=map`;
                               tweetText += ` | View project: ${dashboardUrl}${projectParams}`;
                               
                               return encodeURIComponent(tweetText);
