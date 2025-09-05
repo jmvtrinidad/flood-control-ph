@@ -191,6 +191,16 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   useEffect(() => {
     const initializeMap = () => {
       if (window.google && window.google.maps) {
+        const mapContainer = document.getElementById('map-container');
+        
+        // Check if map container exists before initializing
+        if (!mapContainer) {
+          console.warn('Map container not found, retrying...');
+          // Retry after a short delay to allow DOM to render
+          setTimeout(initializeMap, 100);
+          return;
+        }
+
         const mapOptions = {
           zoom: 6,
           center: { lat: 12.8797, lng: 121.7740 }, // Philippines center
@@ -198,7 +208,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         };
 
         const mapInstance = new window.google.maps.Map(
-          document.getElementById('map-container'),
+          mapContainer,
           mapOptions
         );
 
