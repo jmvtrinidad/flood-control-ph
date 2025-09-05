@@ -178,9 +178,19 @@ export class MemStorage implements IStorage {
 
   async createProjects(insertProjects: InsertProject[]): Promise<Project[]> {
     const createdProjects: Project[] = [];
-    const projectsForDb: Project[] = [];
     
-    // Create all projects in memory first
+    // Clear existing projects from both memory and database to ensure sync
+    if (insertProjects.length > 500) {
+      console.log('Bulk loading detected, clearing existing data to ensure sync...');
+      this.projects.clear();
+      try {
+        await db.delete(projects);
+      } catch (error) {
+        console.warn('Failed to clear database projects:', error);
+      }
+    }
+    
+    // Create all projects with same IDs for both memory and database
     for (const insertProject of insertProjects) {
       const id = randomUUID();
       const now = new Date();
@@ -197,18 +207,17 @@ export class MemStorage implements IStorage {
       
       this.projects.set(id, project);
       createdProjects.push(project);
-      projectsForDb.push(project);
     }
     
-    // Bulk save to database in batches to avoid stack overflow
+    // Bulk save to database in batches using the SAME projects from memory
     try {
-      if (projectsForDb.length > 0) {
+      if (createdProjects.length > 0) {
         const batchSize = 100; // Process in batches of 100
-        for (let i = 0; i < projectsForDb.length; i += batchSize) {
-          const batch = projectsForDb.slice(i, i + batchSize);
+        for (let i = 0; i < createdProjects.length; i += batchSize) {
+          const batch = createdProjects.slice(i, i + batchSize);
           await db.insert(projects).values(batch);
         }
-        console.log(`Successfully saved ${projectsForDb.length} projects to database`);
+        console.log(`Successfully synchronized ${createdProjects.length} projects to database`);
       }
     } catch (error) {
       console.warn('Failed to bulk save projects to database:', error);
