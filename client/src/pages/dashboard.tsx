@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import type { Project } from '@/types/project';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { FilterSidebar } from '@/components/dashboard/filter-sidebar';
@@ -13,9 +14,45 @@ import { useFilters } from '@/hooks/use-filters';
 type Tab = 'overview' | 'data-table' | 'analytics' | 'map';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [location, setLocation] = useLocation();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const { filters, updateFilters, clearFilters } = useFilters();
+  
+  // Get tab from URL or default to 'overview'
+  const getTabFromURL = (): Tab => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') as Tab;
+    return ['overview', 'data-table', 'analytics', 'map'].includes(tab) ? tab : 'overview';
+  };
+  
+  const [activeTab, setActiveTabState] = useState<Tab>(getTabFromURL());
+  
+  // Update tab and URL
+  const setActiveTab = (tab: Tab) => {
+    setActiveTabState(tab);
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', tab);
+    const newURL = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, '', newURL);
+  };
+  
+  // Listen for URL changes (back/forward navigation)
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTabState(getTabFromURL());
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+  
+  // Initialize tab from URL on component mount
+  useEffect(() => {
+    const urlTab = getTabFromURL();
+    if (urlTab !== activeTab) {
+      setActiveTabState(urlTab);
+    }
+  }, []);
   
   // Create combined filters including search
   const [searchQuery, setSearchQuery] = useState('');
