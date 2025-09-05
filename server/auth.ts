@@ -4,7 +4,7 @@ import { Strategy as FacebookStrategy } from 'passport-facebook';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
 import type { Express, Request, Response, NextFunction } from 'express';
-import { users, insertUserSchema } from '@shared/schema';
+import { users, insertUserSchema, settings } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 
@@ -31,7 +31,7 @@ export function setupSession(app: Express) {
 }
 
 // Passport configuration
-export function setupPassport(app: Express) {
+export async function setupPassport(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -83,39 +83,54 @@ export function setupPassport(app: Express) {
     }
   }));
 
-  // Facebook OAuth Strategy
-  passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID!,
-    clientSecret: process.env.FACEBOOK_APP_SECRET!,
-    callbackURL: process.env.NODE_ENV === 'production' 
-      ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/facebook/callback`
-      : '/api/auth/facebook/callback',
-    profileFields: ['id', 'displayName', 'photos', 'email']
-  }, async (accessToken, refreshToken, profile, done) => {
-    try {
-      // Check if user already exists
-      const existingUser = await db.select().from(users)
-        .where(eq(users.providerId, profile.id))
-        .limit(1);
+  // Check if Facebook login is enabled
+  try {
+    const facebookSetting = await db.select()
+      .from(settings)
+      .where(eq(settings.key, 'facebook_login_enabled'))
+      .limit(1);
 
-      if (existingUser.length > 0) {
-        return done(null, existingUser[0]);
-      }
+    const isFacebookEnabled = facebookSetting.length > 0 ? Boolean(facebookSetting[0].value) : true;
 
-      // Create new user
-      const newUser = await db.insert(users).values({
-        email: profile.emails?.[0]?.value || '',
-        name: profile.displayName || '',
-        avatar: profile.photos?.[0]?.value || '',
-        provider: 'facebook',
-        providerId: profile.id,
-      }).returning();
+    if (isFacebookEnabled && process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+      // Facebook OAuth Strategy
+      passport.use(new FacebookStrategy({
+        clientID: process.env.FACEBOOK_APP_ID!,
+        clientSecret: process.env.FACEBOOK_APP_SECRET!,
+        callbackURL: process.env.NODE_ENV === 'production' 
+          ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/api/auth/facebook/callback`
+          : '/api/auth/facebook/callback',
+        profileFields: ['id', 'displayName', 'photos', 'email']
+      }, async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Check if user already exists
+          const existingUser = await db.select().from(users)
+            .where(eq(users.providerId, profile.id))
+            .limit(1);
 
-      return done(null, newUser[0]);
-    } catch (error) {
-      return done(error, undefined);
+          if (existingUser.length > 0) {
+            return done(null, existingUser[0]);
+          }
+
+          // Create new user
+          const newUser = await db.insert(users).values({
+            email: profile.emails?.[0]?.value || '',
+            name: profile.displayName || '',
+            avatar: profile.photos?.[0]?.value || '',
+            provider: 'facebook',
+            providerId: profile.id,
+          }).returning();
+
+          return done(null, newUser[0]);
+        } catch (error) {
+          return done(error, undefined);
+        }
+      }));
     }
-  }));
+  } catch (error) {
+    console.error('Error checking Facebook login setting:', error);
+    // Default to disabled if there's an error
+  }
 }
 
 // Authentication middleware
@@ -133,7 +148,19 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 // Auth routes
-export function setupAuthRoutes(app: Express) {
+export async function setupAuthRoutes(app: Express) {
+  // Check if Facebook login is enabled for route setup
+  let isFacebookEnabled = true;
+  try {
+    const facebookSetting = await db.select()
+      .from(settings)
+      .where(eq(settings.key, 'facebook_login_enabled'))
+      .limit(1);
+    isFacebookEnabled = facebookSetting.length > 0 ? Boolean(facebookSetting[0].value) : true;
+  } catch (error) {
+    console.error('Error checking Facebook login setting for routes:', error);
+    isFacebookEnabled = false;
+  }
   // Google OAuth routes
   app.get('/api/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -146,17 +173,19 @@ export function setupAuthRoutes(app: Express) {
     }
   );
 
-  // Facebook OAuth routes
-  app.get('/api/auth/facebook',
-    passport.authenticate('facebook', { scope: ['email'] })
-  );
+  // Facebook OAuth routes (only if enabled)
+  if (isFacebookEnabled && process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    app.get('/api/auth/facebook',
+      passport.authenticate('facebook', { scope: ['email'] })
+    );
 
-  app.get('/api/auth/facebook/callback',
-    passport.authenticate('facebook', { failureRedirect: '/?error=facebook_auth_failed' }),
-    (req, res) => {
-      res.redirect('/');
-    }
-  );
+    app.get('/api/auth/facebook/callback',
+      passport.authenticate('facebook', { failureRedirect: '/?error=facebook_auth_failed' }),
+      (req, res) => {
+        res.redirect('/');
+      }
+    );
+  }
 
   // Logout route
   app.post('/api/auth/logout', (req, res) => {

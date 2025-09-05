@@ -1,11 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, filtersSchema, uploadProjectSchema, insertReactionSchema, insertUserLocationSchema, projects } from "@shared/schema";
+import { insertProjectSchema, filtersSchema, uploadProjectSchema, insertReactionSchema, insertUserLocationSchema, projects, settings } from "@shared/schema";
 import { setupSession, setupPassport, setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
 import { db } from "./db";
 import { reactions, userLocations, users } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import multer from "multer";
 import { z } from "zod";
 
@@ -17,8 +17,8 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupSession(app);
-  setupPassport(app);
-  setupAuthRoutes(app);
+  await setupPassport(app);
+  await setupAuthRoutes(app);
   // Get projects with optional filters
   app.get("/api/projects", async (req, res) => {
     try {
@@ -202,6 +202,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get authentication settings
+  app.get("/api/auth/settings", async (req, res) => {
+    try {
+      // Initialize default settings if they don't exist
+      const defaultSettings = [
+        { key: 'facebook_login_enabled', value: true, description: 'Enable Facebook OAuth authentication' },
+        { key: 'google_login_enabled', value: true, description: 'Enable Google OAuth authentication' }
+      ];
+
+      for (const setting of defaultSettings) {
+        await db.insert(settings)
+          .values(setting)
+          .onConflictDoNothing();
+      }
+
+      // Fetch current settings
+      const authSettings = await db.select()
+        .from(settings)
+        .where(or(
+          eq(settings.key, 'facebook_login_enabled'),
+          eq(settings.key, 'google_login_enabled')
+        ));
+
+      const settingsObj = authSettings.reduce((acc, setting) => {
+        acc[setting.key] = setting.value;
+        return acc;
+      }, {} as Record<string, any>);
+
+      res.json(settingsObj);
+    } catch (error) {
+      console.error('Error fetching auth settings:', error);
+      res.status(500).json({ error: "Failed to fetch authentication settings" });
     }
   });
 
