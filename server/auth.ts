@@ -13,22 +13,55 @@ import { eq } from 'drizzle-orm';
 export function setupSession(app: Express) {
   const PgSession = connectPg(session);
   
+  // Configure session for production deployment
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isReplit = !!process.env.REPLIT_DOMAINS;
+  
   app.use(session({
-    name: 'connect.sid', // Explicitly set session cookie name
+    name: 'connect.sid',
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
+      tableName: 'session', // Explicit table name
     }),
     secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset expiry on activity
     cookie: {
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production with HTTPS
+      secure: isProduction || isReplit, // Always use secure cookies for Replit deployments
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      httpOnly: true, // Prevent XSS attacks
-      sameSite: 'lax', // CSRF protection
+      httpOnly: true,
+      sameSite: isProduction ? 'none' : 'lax', // Use 'none' for production OAuth flows
+      domain: undefined, // Let the browser set domain automatically
     },
   }));
+  
+  // Add trust proxy for production
+  if (isProduction || isReplit) {
+    app.set('trust proxy', 1);
+  }
+  
+  // Add session debugging middleware for production
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Log session issues in production
+    if (isProduction && !req.session) {
+      console.error('Session not found:', {
+        url: req.url,
+        headers: req.headers,
+        cookies: req.headers.cookie
+      });
+    }
+    
+    // Set CORS headers for session cookies
+    if (isProduction) {
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    }
+    
+    next();
+  });
 }
 
 // Passport configuration
@@ -57,7 +90,9 @@ export async function setupPassport(app: Express) {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     callbackURL: process.env.REPLIT_DOMAINS 
       ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/google/callback`
-      : '/api/auth/google/callback'
+      : process.env.NODE_ENV === 'production'
+        ? `${process.env.REPL_URL || 'https://localhost'}/api/auth/google/callback`
+        : '/api/auth/google/callback'
   }, async (accessToken, refreshToken, profile, done) => {
     try {
       // Check if user already exists
@@ -100,7 +135,9 @@ export async function setupPassport(app: Express) {
         clientSecret: process.env.FACEBOOK_APP_SECRET!,
         callbackURL: process.env.REPLIT_DOMAINS 
           ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/facebook/callback`
-          : '/api/auth/facebook/callback',
+          : process.env.NODE_ENV === 'production'
+            ? `${process.env.REPL_URL || 'https://localhost'}/api/auth/facebook/callback`
+            : '/api/auth/facebook/callback',
         profileFields: ['id', 'displayName', 'photos', 'email']
       }, async (accessToken, refreshToken, profile, done) => {
         try {
@@ -149,7 +186,9 @@ export async function setupPassport(app: Express) {
         consumerSecret: process.env.TWITTER_CONSUMER_SECRET!,
         callbackURL: process.env.REPLIT_DOMAINS 
           ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/twitter/callback`
-          : '/api/auth/twitter/callback',
+          : process.env.NODE_ENV === 'production'
+            ? `${process.env.REPL_URL || 'https://localhost'}/api/auth/twitter/callback`
+            : '/api/auth/twitter/callback',
         includeEmail: true
       }, async (token, tokenSecret, profile, done) => {
         try {
