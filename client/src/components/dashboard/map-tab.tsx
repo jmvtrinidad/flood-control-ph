@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon } from 'lucide-react';
+import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon, Navigation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAddReaction, useProjectReactions, useUserProjectReaction } from '@/hooks/useReactions';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +28,9 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [mapStyle, setMapStyle] = useState('roadmap');
   const [showAllProjects, setShowAllProjects] = useState(!selectedProject);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showCurrentLocation, setShowCurrentLocation] = useState(false);
+  const [userLocationMarker, setUserLocationMarker] = useState<any>(null);
+  const [projectCircles, setProjectCircles] = useState<any[]>([]);
   
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
@@ -101,6 +104,26 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         variant: "destructive"
       });
     }
+  };
+
+  // Toggle current location display
+  const toggleCurrentLocation = () => {
+    if (!showCurrentLocation && !userLocation) {
+      getCurrentLocation();
+    }
+    setShowCurrentLocation(!showCurrentLocation);
+  };
+
+  // Calculate distance between two points in kilometers
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lng2 - lng1) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+             Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+             Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
   const handleReactionClick = async (rating: string) => {
@@ -184,30 +207,88 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         // Filter projects to display based on mode
         const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
         
+        // Clear existing circles
+        projectCircles.forEach(circle => circle.setMap(null));
+        setProjectCircles([]);
+        
         // Add markers for projects
+        const newCircles: any[] = [];
         projectsToDisplay.forEach((project) => {
+          const projectLat = parseFloat(project.latitude);
+          const projectLng = parseFloat(project.longitude);
+          
+          // Determine marker color based on proximity to user location (500m for rating eligibility)
+          let canRate = false;
+          if (userLocation && showCurrentLocation) {
+            const distance = calculateDistance(userLocation.latitude, userLocation.longitude, projectLat, projectLng);
+            canRate = distance <= 0.5; // 500 meters
+          }
+          
+          // Create marker with appropriate color
+          const markerColor = selectedProject?.id === project.id ? '#FF4444' :
+                             canRate ? '#22C55E' : // Green for can rate
+                             showCurrentLocation ? '#EF4444' : '#3B82F6'; // Red for can't rate, blue for default
+          
           const marker = new window.google.maps.Marker({
-            position: { 
-              lat: parseFloat(project.latitude), 
-              lng: parseFloat(project.longitude) 
-            },
+            position: { lat: projectLat, lng: projectLng },
             map: mapInstance,
             title: project.projectname,
-            icon: selectedProject?.id === project.id ? {
+            icon: {
               url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
                 '<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">' +
-                '<path d="M12 0C5.4 0 0 5.4 0 12s12 24 12 24 12-17.6 12-24S18.6 0 12 0z" fill="#FF4444"/>' +
+                '<path d="M12 0C5.4 0 0 5.4 0 12s12 24 12 24 12-17.6 12-24S18.6 0 12 0z" fill="' + markerColor + '"/>' +
                 '<circle cx="12" cy="12" r="6" fill="white"/>' +
                 '</svg>'
               ),
               scaledSize: new window.google.maps.Size(24, 36)
-            } : undefined,
+            },
           });
 
           marker.addListener('click', () => {
             setCurrentSelectedProject(project);
           });
+          
+          // Add 10km radius circle when location is shown
+          if (showCurrentLocation && userLocation) {
+            const circle = new window.google.maps.Circle({
+              strokeColor: canRate ? '#22C55E' : '#EF4444',
+              strokeOpacity: 0.6,
+              strokeWeight: 2,
+              fillColor: canRate ? '#22C55E' : '#EF4444',
+              fillOpacity: 0.1,
+              map: mapInstance,
+              center: { lat: projectLat, lng: projectLng },
+              radius: 10000, // 10km in meters
+            });
+            newCircles.push(circle);
+          }
         });
+        
+        setProjectCircles(newCircles);
+        
+        // Add user location marker if enabled
+        if (userLocationMarker) {
+          userLocationMarker.setMap(null);
+          setUserLocationMarker(null);
+        }
+        
+        if (showCurrentLocation && userLocation) {
+          const userMarker = new window.google.maps.Marker({
+            position: { lat: userLocation.latitude, lng: userLocation.longitude },
+            map: mapInstance,
+            title: 'Your Location',
+            icon: {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+                '<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">' +
+                '<circle cx="10" cy="10" r="8" fill="#3B82F6" stroke="white" stroke-width="2"/>' +
+                '<circle cx="10" cy="10" r="3" fill="white"/>' +
+                '</svg>'
+              ),
+              scaledSize: new window.google.maps.Size(20, 20)
+            },
+          });
+          setUserLocationMarker(userMarker);
+        }
 
         // Center on selected project if provided
         if (selectedProject && selectedProject.latitude && selectedProject.longitude) {
@@ -235,7 +316,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     } else {
       initializeMap();
     }
-  }, [projects, mapStyle, showAllProjects, selectedProject]);
+  }, [projects, mapStyle, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
 
   const handleStyleChange = (newStyle: string) => {
     setMapStyle(newStyle);
@@ -303,6 +384,15 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           )}
         </div>
         <div className="flex items-center space-x-2">
+          <Button 
+            variant={showCurrentLocation ? "default" : "outline"} 
+            size="sm" 
+            onClick={toggleCurrentLocation}
+            data-testid="button-toggle-location"
+          >
+            <Navigation className="mr-2 h-4 w-4" />
+            {showCurrentLocation ? 'Hide' : 'Show'} Location
+          </Button>
           <Button variant="outline" size="sm" data-testid="button-toggle-layers">
             <Layers className="mr-2 h-4 w-4" />
             Toggle Layers
@@ -347,19 +437,45 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Legend</h4>
                 <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-primary rounded-full"></div>
-                    <span className="text-xs text-muted-foreground">Active Projects</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-xs text-muted-foreground">Completed Projects</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <span className="text-xs text-muted-foreground">Planned Projects</span>
-                  </div>
+                  {showCurrentLocation ? (
+                    <>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Can Rate (Within 500m)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Cannot Rate (Beyond 500m)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Your Location</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 border border-green-500 rounded-full bg-green-100"></div>
+                        <span className="text-xs text-muted-foreground">10km Radius</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-primary rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Infrastructure Projects</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Selected Project</span>
+                      </div>
+                    </>
+                  )}
                 </div>
+                {showCurrentLocation && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Green pins: You can rate these projects (within 500m)
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
