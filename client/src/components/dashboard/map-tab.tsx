@@ -87,7 +87,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       await addReaction.mutateAsync({
         projectId: currentSelectedProject.id,
         rating,
-        userLocation
+        userLocation: userLocation || undefined
       });
       
       toast({

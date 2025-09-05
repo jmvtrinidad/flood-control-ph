@@ -31,6 +31,39 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
   const { isAuthenticated, user } = useAuth();
   const addReaction = useAddReaction();
 
+  // Component to display rating counts for a project
+  const ProjectRatings = ({ projectId }: { projectId: string }) => {
+    const { data: reactions = [] } = useProjectReactions(projectId);
+    
+    const ratingsCount = {
+      excellent: reactions.filter(r => r.rating === 'excellent').length,
+      standard: reactions.filter(r => r.rating === 'standard').length,
+      'sub-standard': reactions.filter(r => r.rating === 'sub-standard').length,
+      ghost: reactions.filter(r => r.rating === 'ghost').length
+    };
+    
+    const totalRatings = Object.values(ratingsCount).reduce((sum, count) => sum + count, 0);
+    
+    if (totalRatings === 0) {
+      return <span className="text-xs text-muted-foreground">No ratings</span>;
+    }
+    
+    return (
+      <div className="flex gap-1 flex-wrap">
+        {Object.entries(ratingsCount).map(([rating, count]) => {
+          if (count === 0) return null;
+          return (
+            <div key={rating} className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${getRatingColor(rating)}`}>
+              {getRatingIcon(rating)}
+              <span>{count}</span>
+            </div>
+          );
+        })}
+        <span className="text-xs text-muted-foreground ml-1">({totalRatings})</span>
+      </div>
+    );
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -302,43 +335,46 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                     </TableCell>
                     <TableCell className="text-foreground">{project.fy}</TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Excellent"
-                          onClick={() => handleReactionClick(project, 'excellent')}
-                          data-testid={`button-excellent-${project.id}`}
-                        >
-                          {getRatingIcon('excellent')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Standard"
-                          onClick={() => handleReactionClick(project, 'standard')}
-                          data-testid={`button-standard-${project.id}`}
-                        >
-                          {getRatingIcon('standard')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Sub-standard"
-                          onClick={() => handleReactionClick(project, 'sub-standard')}
-                          data-testid={`button-sub-standard-${project.id}`}
-                        >
-                          {getRatingIcon('sub-standard')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Ghost Project"
-                          onClick={() => handleReactionClick(project, 'ghost')}
-                          data-testid={`button-ghost-${project.id}`}
-                        >
-                          {getRatingIcon('ghost')}
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Excellent"
+                            onClick={() => handleReactionClick(project, 'excellent')}
+                            data-testid={`button-excellent-${project.id}`}
+                          >
+                            {getRatingIcon('excellent')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Standard"
+                            onClick={() => handleReactionClick(project, 'standard')}
+                            data-testid={`button-standard-${project.id}`}
+                          >
+                            {getRatingIcon('standard')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Sub-standard"
+                            onClick={() => handleReactionClick(project, 'sub-standard')}
+                            data-testid={`button-sub-standard-${project.id}`}
+                          >
+                            {getRatingIcon('sub-standard')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Ghost Project"
+                            onClick={() => handleReactionClick(project, 'ghost')}
+                            data-testid={`button-ghost-${project.id}`}
+                          >
+                            {getRatingIcon('ghost')}
+                          </Button>
+                        </div>
+                        <ProjectRatings projectId={project.id} />
                       </div>
                     </TableCell>
                     <TableCell>
