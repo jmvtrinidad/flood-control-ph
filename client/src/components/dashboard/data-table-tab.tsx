@@ -340,51 +340,181 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
-        <div className={`${isMobile ? 'overflow-x-auto scrollbar-hide' : 'overflow-x-auto'}`}>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSort('projectname')}
-                  data-testid="header-project-name"
-                >
-                  Project Name {getSortIcon('projectname')}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSort('location')}
-                  data-testid="header-location"
-                >
-                  Location {getSortIcon('location')}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSort('contractor')}
-                  data-testid="header-contractor"
-                >
-                  Contractor {getSortIcon('contractor')}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSort('cost')}
-                  data-testid="header-cost"
-                >
-                  Cost {getSortIcon('cost')}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleSort('fy')}
-                  data-testid="header-fiscal-year"
-                >
-                  Fiscal Year {getSortIcon('fy')}
-                </TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+      {/* Sort Controls for Mobile */}
+      {isMobile && (
+        <div className="flex items-center justify-between bg-muted/20 p-3 rounded-lg">
+          <span className="text-sm font-medium">Sort by:</span>
+          <Select value={sortField} onValueChange={(value: SortField) => handleSort(value)}>
+            <SelectTrigger className="w-32 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="projectname">Name</SelectItem>
+              <SelectItem value="location">Location</SelectItem>
+              <SelectItem value="contractor">Contractor</SelectItem>
+              <SelectItem value="cost">Cost</SelectItem>
+              <SelectItem value="fy">Year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            className="p-1"
+          >
+            <ArrowUpDown className={`h-3 w-3 ${sortDirection === 'desc' ? 'rotate-180' : ''}`} />
+          </Button>
+        </div>
+      )}
+
+      {/* Data Display - Mobile Cards or Desktop Table */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {paginatedProjects.length > 0 ? (
+            paginatedProjects.map((project) => (
+              <div 
+                key={project.id} 
+                className="bg-card border border-border rounded-lg p-4 shadow-sm"
+                data-testid={`card-project-${project.id}`}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-foreground text-sm leading-tight">
+                      {project.projectname}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">Infrastructure Development</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Location:</span>
+                      <p className="font-medium text-foreground">{project.location}</p>
+                      <p className="text-muted-foreground">{project.region}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Fiscal Year:</span>
+                      <p className="font-medium text-foreground">{project.fy}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Cost:</span>
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(parseFloat(project.cost))}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {parseFloat(project.cost) > 1e9 ? 'High Value' : 'Standard'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Contractor:</span>
+                      <p className="font-medium text-foreground text-xs leading-tight">{project.contractor}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground text-xs">Community Rating:</span>
+                    <ProjectRatings projectId={project.id} />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <div className="flex space-x-1">
+                      {isAuthenticated ? (
+                        <RatingButtons 
+                          projectId={project.id} 
+                          onRate={(rating) => handleReactionClick(project, rating)} 
+                        />
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setShowLoginModal(true);
+                          }}
+                          className="text-xs px-2 py-1"
+                        >
+                          Rate Project
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex space-x-1">
+                      {onViewOnMap && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onViewOnMap(project)}
+                          data-testid={`button-view-map-${project.id}`}
+                          className="p-1"
+                        >
+                          <MapPin className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-view-details-${project.id}`}
+                        className="p-1"
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-card border border-border rounded-lg p-8 text-center">
+              <div className="text-muted-foreground">
+                <div className="text-lg mb-2">No projects found</div>
+                <p className="text-sm">Try adjusting your filters or upload some data</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('projectname')}
+                    data-testid="header-project-name"
+                  >
+                    Project Name {getSortIcon('projectname')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('location')}
+                    data-testid="header-location"
+                  >
+                    Location {getSortIcon('location')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('contractor')}
+                    data-testid="header-contractor"
+                  >
+                    Contractor {getSortIcon('contractor')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('cost')}
+                    data-testid="header-cost"
+                  >
+                    Cost {getSortIcon('cost')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('fy')}
+                    data-testid="header-fiscal-year"
+                  >
+                    Fiscal Year {getSortIcon('fy')}
+                  </TableHead>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {paginatedProjects.length > 0 ? (
                 paginatedProjects.map((project) => (
@@ -491,26 +621,28 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
             </TableBody>
           </Table>
         </div>
+        </div>
+      )}
 
-        <LoginModal 
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          message="Please log in to rate projects and share your feedback"
-        />
+      <LoginModal 
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        message="Please log in to rate projects and share your feedback"
+      />
 
-        {/* Pagination */}
-        {paginatedProjects.length > 0 && (
-          <div className={`px-4 py-3 bg-muted/20 border-t border-border ${isMobile ? 'flex-col space-y-3' : 'flex items-center justify-between'}`}>
-            <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground ${isMobile ? 'text-center' : ''}`} data-testid="pagination-info">
-              {isMobile 
-                ? `${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)}`
-                : `Showing ${startIndex + 1} to ${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)} results`
-              }
-            </div>
+      {/* Pagination */}
+      {paginatedProjects.length > 0 && (
+        <div className={`px-4 py-3 bg-muted/20 border border-border rounded-lg ${isMobile ? 'flex-col space-y-3' : 'flex items-center justify-between'}`}>
+          <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground ${isMobile ? 'text-center' : ''}`} data-testid="pagination-info">
+            {isMobile 
+              ? `${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)}`
+              : `Showing ${startIndex + 1} to ${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)} results`
+            }
+          </div>
             <div className={`flex items-center ${isMobile ? 'justify-center space-x-1' : 'space-x-2'}`}>
               <Button
                 variant="outline"
-                size={isMobile ? "sm" : "sm"}
+                size="sm"
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 data-testid="button-previous-page"
@@ -520,7 +652,6 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 {!isMobile && 'Previous'}
               </Button>
               
-              {/* Mobile: Simple page indicator, Desktop: Full pagination */}
               {isMobile ? (
                 <div className="flex items-center space-x-2 px-3">
                   <span className="text-sm font-medium">{currentPage}</span>
@@ -574,7 +705,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
 
               <Button
                 variant="outline"
-                size={isMobile ? "sm" : "sm"}
+                size="sm"
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 data-testid="button-next-page"
@@ -584,9 +715,8 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 <ChevronRight className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
