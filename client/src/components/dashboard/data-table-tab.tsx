@@ -11,6 +11,7 @@ import { formatCurrency, formatNumber, sortProjects } from '@/lib/analytics';
 import { downloadCSV, downloadJSON, exportToCSVFromAPI } from '@/lib/export';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DataTableTabProps {
   projects: Project[];
@@ -27,6 +28,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const isMobile = useIsMobile();
 
   const { isAuthenticated, user } = useAuth();
   const addReaction = useAddReaction();
@@ -292,7 +294,7 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6" data-testid="data-table-loading">
+      <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="data-table-loading">
         <div className="animate-pulse">
           <div className="h-8 bg-muted rounded w-1/3 mb-4"></div>
           <div className="space-y-2">
@@ -306,30 +308,41 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="data-table-tab">
+    <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="data-table-tab">
       {/* Table Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-xl font-semibold text-foreground">Project Data</h2>
+      <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-between'}`}>
+        <div className={`flex items-center ${isMobile ? 'justify-between w-full' : 'space-x-4'}`}>
+          <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-foreground`}>Project Data</h2>
           <Badge variant="secondary" data-testid="project-count">
             {formatNumber(projects.length)} projects
           </Badge>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button onClick={handleExportCSV} data-testid="button-export-csv">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
+        <div className={`flex items-center ${isMobile ? 'w-full justify-between' : 'space-x-2'}`}>
+          <Button 
+            onClick={handleExportCSV} 
+            data-testid="button-export-csv"
+            size={isMobile ? 'sm' : 'default'}
+            className={isMobile ? 'text-xs px-3' : ''}
+          >
+            <Download className={`${isMobile ? 'mr-1 h-3 w-3' : 'mr-2 h-4 w-4'}`} />
+            {isMobile ? 'CSV' : 'Export CSV'}
           </Button>
-          <Button variant="outline" onClick={handleExportJSON} data-testid="button-export-json">
-            <FileCode className="mr-2 h-4 w-4" />
-            Export JSON
+          <Button 
+            variant="outline" 
+            onClick={handleExportJSON} 
+            data-testid="button-export-json"
+            size={isMobile ? 'sm' : 'default'}
+            className={isMobile ? 'text-xs px-3' : ''}
+          >
+            <FileCode className={`${isMobile ? 'mr-1 h-3 w-3' : 'mr-2 h-4 w-4'}`} />
+            {isMobile ? 'JSON' : 'Export JSON'}
           </Button>
         </div>
       </div>
 
       {/* Data Table */}
       <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        <div className={`${isMobile ? 'overflow-x-auto scrollbar-hide' : 'overflow-x-auto'}`}>
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
@@ -487,74 +500,88 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
 
         {/* Pagination */}
         {paginatedProjects.length > 0 && (
-          <div className="px-4 py-3 bg-muted/20 border-t border-border flex items-center justify-between">
-            <div className="text-sm text-muted-foreground" data-testid="pagination-info">
-              Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of {formatNumber(sortedProjects.length)} results
+          <div className={`px-4 py-3 bg-muted/20 border-t border-border ${isMobile ? 'flex-col space-y-3' : 'flex items-center justify-between'}`}>
+            <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground ${isMobile ? 'text-center' : ''}`} data-testid="pagination-info">
+              {isMobile 
+                ? `${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)}`
+                : `Showing ${startIndex + 1} to ${Math.min(startIndex + ITEMS_PER_PAGE, sortedProjects.length)} of ${formatNumber(sortedProjects.length)} results`
+              }
             </div>
-            <div className="flex items-center space-x-2">
+            <div className={`flex items-center ${isMobile ? 'justify-center space-x-1' : 'space-x-2'}`}>
               <Button
                 variant="outline"
-                size="sm"
+                size={isMobile ? "sm" : "sm"}
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 data-testid="button-previous-page"
+                className={isMobile ? 'px-2' : ''}
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronLeft className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />
+                {!isMobile && 'Previous'}
               </Button>
               
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else {
-                    if (currentPage <= 3) {
+              {/* Mobile: Simple page indicator, Desktop: Full pagination */}
+              {isMobile ? (
+                <div className="flex items-center space-x-2 px-3">
+                  <span className="text-sm font-medium">{currentPage}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-sm text-muted-foreground">{totalPages}</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
                       pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
                     } else {
-                      pageNum = currentPage - 2 + i;
+                      if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
                     }
-                  }
 
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      data-testid={`button-page-${pageNum}`}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                {totalPages > 5 && currentPage < totalPages - 2 && (
-                  <>
-                    <span className="px-2 text-muted-foreground">...</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(totalPages)}
-                      data-testid="button-last-page"
-                    >
-                      {totalPages}
-                    </Button>
-                  </>
-                )}
-              </div>
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        data-testid={`button-page-${pageNum}`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <span className="px-2 text-muted-foreground">...</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        data-testid="button-last-page"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
 
               <Button
                 variant="outline"
-                size="sm"
+                size={isMobile ? "sm" : "sm"}
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 data-testid="button-next-page"
+                className={isMobile ? 'px-2' : ''}
               >
-                Next
-                <ChevronRight className="h-4 w-4" />
+                {!isMobile && 'Next'}
+                <ChevronRight className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />
               </Button>
             </div>
           </div>

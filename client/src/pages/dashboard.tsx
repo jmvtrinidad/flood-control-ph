@@ -10,13 +10,19 @@ import { AnalyticsTab } from '@/components/dashboard/analytics-tab';
 import { MapTab } from '@/components/dashboard/map-tab';
 import { useProjects } from '@/hooks/use-projects';
 import { useFilters } from '@/hooks/use-filters';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Filter, Menu } from 'lucide-react';
 
 type Tab = 'overview' | 'data-table' | 'analytics' | 'map';
 
 export default function Dashboard() {
   const [location, setLocation] = useLocation();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const { filters, updateFilters, clearFilters } = useFilters();
+  const isMobile = useIsMobile();
   
   // Get tab from URL or default to 'overview'
   const getTabFromURL = (): Tab => {
@@ -107,28 +113,63 @@ export default function Dashboard() {
       <DashboardHeader />
       
       <div className="flex h-[calc(100vh-80px)]">
-        <FilterSidebar 
-          filters={filters}
-          onFiltersChange={updateFilters}
-          onClearFilters={clearFilters}
-          projects={projects}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-        />
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <FilterSidebar 
+            filters={filters}
+            onFiltersChange={updateFilters}
+            onClearFilters={clearFilters}
+            projects={projects}
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+          />
+        )}
+
+        {/* Mobile Filter Sheet */}
+        {isMobile && (
+          <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+            <SheetContent side="left" className="w-80 p-0">
+              <FilterSidebar 
+                filters={filters}
+                onFiltersChange={updateFilters}
+                onClearFilters={clearFilters}
+                projects={projects}
+                searchQuery={searchQuery}
+                onSearchChange={handleSearchChange}
+              />
+            </SheetContent>
+          </Sheet>
+        )}
         
         <main className="flex-1 overflow-hidden">
+          {/* Mobile Filter Trigger */}
+          {isMobile && (
+            <div className="border-b border-border bg-card/30 px-4 py-2">
+              <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2" data-testid="button-mobile-filters">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </Button>
+                </SheetTrigger>
+              </Sheet>
+            </div>
+          )}
+
           <TabNavigation 
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
           
-          <div className="h-[calc(100vh-140px)] overflow-y-auto bg-background">
+          <div className={`overflow-y-auto bg-background ${
+            isMobile ? 'h-[calc(100vh-180px)]' : 'h-[calc(100vh-140px)]'
+          }`}>
             {renderTabContent()}
             
             {/* Disclaimer Footer */}
-            <div className="border-t border-border bg-card/30 px-6 py-4 mt-8">
+            <div className="border-t border-border bg-card/30 px-4 md:px-6 py-4 mt-8">
               <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   <span className="font-medium">Disclaimer:</span> Please verify information from{' '}
                   <a 
                     href="https://sumbongsapangulo.ph" 
@@ -139,7 +180,7 @@ export default function Dashboard() {
                     sumbongsapangulo.ph
                   </a>
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   For updates, email:{' '}
                   <a 
                     href="mailto:infloodcontrolph@gmail.com"

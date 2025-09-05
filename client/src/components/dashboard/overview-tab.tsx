@@ -7,6 +7,7 @@ import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { ContractorList } from './contractor-list';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { Project, ProjectFilters } from '@/types/project';
 
 interface OverviewTabProps {
@@ -22,6 +23,7 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 export function OverviewTab({ projects, isLoading, filters, onLocationClick, onRegionClick }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   
   const analyticsFilters = {
     ...filters, // Include global filters (including search)
@@ -33,11 +35,11 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
 
   if (isLoading || analyticsLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6`}>
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-8 w-20 mb-1" />
                 <Skeleton className="h-3 w-16" />
@@ -45,14 +47,14 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
             </Card>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-2 gap-6'}`}>
           {[...Array(2)].map((_, i) => (
             <Card key={i}>
               <CardHeader>
                 <Skeleton className="h-6 w-40" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-64 w-full" />
+                <Skeleton className={`${isMobile ? 'h-48' : 'h-64'} w-full`} />
               </CardContent>
             </Card>
           ))}
@@ -97,72 +99,72 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
   const recentProjects = projects.slice(0, 3);
 
   return (
-    <div className="p-6 space-y-6" data-testid="overview-tab">
+    <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="overview-tab">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6`}>
         <Card data-testid="card-total-projects">
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Projects</p>
-                <p className="text-2xl font-bold text-foreground">{formatNumber(totalProjects)}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-muted-foreground`}>Total Projects</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>{formatNumber(totalProjects)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   <span className="text-green-500"><TrendingUp className="inline h-3 w-3 mr-1" />12%</span> from last year
                 </p>
               </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Building className="h-6 w-6 text-primary" />
+              <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-primary/10 rounded-lg flex items-center justify-center`}>
+                <Building className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-primary`} />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card data-testid="card-total-investment">
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Investment</p>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCost)}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-muted-foreground`}>Total Investment</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>{formatCurrency(totalCost)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   <span className="text-green-500"><TrendingUp className="inline h-3 w-3 mr-1" />18%</span> from last year
                 </p>
               </div>
-              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-accent" />
+              <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-accent/10 rounded-lg flex items-center justify-center`}>
+                <DollarSign className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-accent`} />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card data-testid="card-avg-cost">
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg. Cost</p>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(avgCost)}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-muted-foreground`}>Avg. Cost</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>{formatCurrency(avgCost)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   <span className="text-green-500"><TrendingUp className="inline h-3 w-3 mr-1" />5%</span> from last year
                 </p>
               </div>
-              <div className="w-12 h-12 bg-chart-3/10 rounded-lg flex items-center justify-center">
-                <Calculator className="h-6 w-6 text-chart-3" />
+              <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-chart-3/10 rounded-lg flex items-center justify-center`}>
+                <Calculator className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-chart-3`} />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card data-testid="card-active-regions">
-          <CardContent className="p-6">
+          <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Regions</p>
-                <p className="text-2xl font-bold text-foreground">{activeRegions}</p>
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-muted-foreground`}>Active Regions</p>
+                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-foreground`}>{activeRegions}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   <span className="text-blue-500">All regions</span> covered
                 </p>
               </div>
-              <div className="w-12 h-12 bg-chart-4/10 rounded-lg flex items-center justify-center">
-                <MapPin className="h-6 w-6 text-chart-4" />
+              <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-chart-4/10 rounded-lg flex items-center justify-center`}>
+                <MapPin className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-chart-4`} />
               </div>
             </div>
           </CardContent>
@@ -170,37 +172,40 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-2 gap-6'}`}>
         {/* Cost by Region Chart */}
         <Card data-testid="chart-cost-by-region">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className={isMobile ? 'pb-3' : ''}>
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center justify-between'}`}>
               <CardTitle>
                 {selectedRegion ? `Investment by Location in ${selectedRegion}` : 'Investment by Region'}
               </CardTitle>
-              <div className="flex items-center space-x-2">
+              <div className={`flex items-center ${isMobile ? 'justify-between w-full' : 'space-x-2'}`}>
                 {selectedRegion && (
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => setSelectedRegion(null)}
                     data-testid="back-to-regions"
+                    className={isMobile ? 'text-xs px-2' : ''}
                   >
-                    <ArrowRight className="h-4 w-4 rotate-180 mr-1" />
-                    Back to Regions
+                    <ArrowRight className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} rotate-180 mr-1`} />
+                    {isMobile ? 'Back' : 'Back to Regions'}
                   </Button>
                 )}
-                <Button variant="ghost" size="sm">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Expand className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center space-x-1">
+                  <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                    <Download className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                  </Button>
+                  <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                    <Expand className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className={isMobile ? 'h-48' : 'h-64'}>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} onClick={(data, index) => {
@@ -217,8 +222,8 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
                     }
                   }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={12} />
-                    <YAxis fontSize={12} />
+                    <XAxis dataKey="name" fontSize={isMobile ? 10 : 12} />
+                    <YAxis fontSize={isMobile ? 10 : 12} />
                     <Tooltip 
                       formatter={(value: number, name: string) => [
                         `₱${value.toFixed(1)}B`,

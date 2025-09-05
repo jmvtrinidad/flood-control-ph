@@ -6,6 +6,7 @@ import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost
 import { useToast } from '@/hooks/use-toast';
 import { useAddReaction, useProjectReactions, useUserProjectReaction } from '@/hooks/useReactions';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { Project } from '@/types/project';
 import { formatCurrency } from '@/lib/analytics';
 
@@ -31,6 +32,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [showCurrentLocation, setShowCurrentLocation] = useState(false);
   const [userLocationMarker, setUserLocationMarker] = useState<any>(null);
   const [projectCircles, setProjectCircles] = useState<any[]>([]);
+  const isMobile = useIsMobile();
   
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
@@ -50,7 +52,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     ];
 
     return (
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-1' : 'grid-cols-2 gap-2'}`}>
         {ratings.map(({ key, label, icon: Icon }) => (
           <Button
             key={key}
@@ -58,11 +60,11 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
             size="sm"
             onClick={() => handleReactionClick(key)}
             disabled={addReaction.isPending}
-            className={`justify-start ${currentRating === key ? getRatingColor(key) : getRatingColor(key)}`}
+            className={`justify-start ${currentRating === key ? getRatingColor(key) : getRatingColor(key)} ${isMobile ? 'text-xs py-1' : ''}`}
             data-testid={`button-rate-${key.replace('-', '')}`}
           >
-            <Icon className="mr-2 h-4 w-4" fill={key === 'excellent' ? 'currentColor' : 'none'} />
-            {label}
+            <Icon className={`${isMobile ? 'mr-1 h-3 w-3' : 'mr-2 h-4 w-4'}`} fill={key === 'excellent' ? 'currentColor' : 'none'} />
+            {isMobile && key === 'sub-standard' ? 'Sub-std' : label}
           </Button>
         ))}
       </div>

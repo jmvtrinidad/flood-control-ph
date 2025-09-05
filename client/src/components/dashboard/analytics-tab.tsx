@@ -7,6 +7,7 @@ import { useAnalytics } from '@/hooks/use-projects';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line, Area, AreaChart } from 'recharts';
 import { ContractorList } from './contractor-list';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { ProjectFilters } from '@/types/project';
 
 interface AnalyticsTabProps {
@@ -16,6 +17,7 @@ interface AnalyticsTabProps {
 export function AnalyticsTab({ filters }: AnalyticsTabProps) {
   const [dateRange, setDateRange] = useState('alltime');
   const [useFullCost, setUseFullCost] = useState(false);
+  const isMobile = useIsMobile();
   
   // Combine the passed filters with the date range filter and cost calculation method
   const analyticsFilters = {
@@ -28,10 +30,10 @@ export function AnalyticsTab({ filters }: AnalyticsTabProps) {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6" data-testid="analytics-loading">
+      <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="analytics-loading">
         <div className="animate-pulse">
           <div className="h-8 bg-muted rounded w-1/3 mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-2 xl:grid-cols-3 gap-6'}`}>
             {[...Array(6)].map((_, i) => (
               <div key={i} className="h-64 bg-muted rounded-lg"></div>
             ))}
@@ -62,29 +64,33 @@ export function AnalyticsTab({ filters }: AnalyticsTabProps) {
   })) || [];
 
   return (
-    <div className="p-6 space-y-6" data-testid="analytics-tab">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-foreground">Advanced Analytics</h2>
-        <div className="flex items-center space-x-2">
+    <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="analytics-tab">
+      <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-between'}`}>
+        <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-foreground`}>Advanced Analytics</h2>
+        <div className={`flex items-center ${isMobile ? 'w-full justify-between' : 'space-x-2'}`}>
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-48" data-testid="select-time-range">
+            <SelectTrigger className={isMobile ? 'w-32 text-xs' : 'w-48'} data-testid="select-time-range">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="12months">Last 12 Months</SelectItem>
-              <SelectItem value="24months">Last 24 Months</SelectItem>
-              <SelectItem value="alltime">All Time</SelectItem>
+              <SelectItem value="12months">{isMobile ? '12M' : 'Last 12 Months'}</SelectItem>
+              <SelectItem value="24months">{isMobile ? '24M' : 'Last 24 Months'}</SelectItem>
+              <SelectItem value="alltime">{isMobile ? 'All' : 'All Time'}</SelectItem>
             </SelectContent>
           </Select>
-          <Button data-testid="button-export-report">
-            <Download className="mr-2 h-4 w-4" />
-            Export Report
+          <Button 
+            data-testid="button-export-report"
+            size={isMobile ? 'sm' : 'default'}
+            className={isMobile ? 'text-xs px-3' : ''}
+          >
+            <Download className={`${isMobile ? 'mr-1 h-3 w-3' : 'mr-2 h-4 w-4'}`} />
+            {isMobile ? 'Export' : 'Export Report'}
           </Button>
         </div>
       </div>
 
       {/* Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-2 xl:grid-cols-3 gap-6'}`}>
         {/* Investment Distribution */}
         <Card className="xl:col-span-2" data-testid="card-investment-distribution">
           <CardHeader>
