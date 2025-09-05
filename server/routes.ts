@@ -44,6 +44,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all unique contractors from the database
+  app.get("/api/contractors", async (req, res) => {
+    try {
+      const contractors = await db
+        .selectDistinct({ contractor: projects.contractor })
+        .from(projects)
+        .where(sql`${projects.contractor} IS NOT NULL AND ${projects.contractor} != ''`)
+        .orderBy(projects.contractor);
+      
+      res.json(contractors.map(row => row.contractor));
+    } catch (error) {
+      console.error('Error fetching contractors:', error);
+      res.status(500).json({ error: "Failed to fetch contractors" });
+    }
+  });
+
   // Get projects with reaction summaries grouped by contractor
   app.get("/api/projects/by-reactions", async (req, res) => {
     try {

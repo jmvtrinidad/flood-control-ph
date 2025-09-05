@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Search } from 'lucide-react';
 import type { ProjectFilters, Project } from '@/types/project';
+import { useContractors } from '@/hooks/use-contractors';
 
 interface FilterSidebarProps {
   filters: ProjectFilters;
@@ -17,6 +18,7 @@ interface FilterSidebarProps {
 export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [], searchQuery, onSearchChange }: FilterSidebarProps) {
   // Get unique locations from projects data
   const uniqueLocations = Array.from(new Set(projects.map(p => p.location))).sort();
+  const { data: contractors, isLoading: contractorsLoading } = useContractors();
 
   return (
     <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
@@ -119,13 +121,15 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projec
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Contractors</SelectItem>
-              <SelectItem value="DMCI Holdings">DMCI Holdings</SelectItem>
-              <SelectItem value="Megawide Construction">Megawide Construction</SelectItem>
-              <SelectItem value="D.M. Consunji Inc.">D.M. Consunji Inc.</SelectItem>
-              <SelectItem value="EEI Corporation">EEI Corporation</SelectItem>
-              <SelectItem value="San Miguel Corp.">San Miguel Corp.</SelectItem>
-              <SelectItem value="JG Summit Holdings">JG Summit Holdings</SelectItem>
-              <SelectItem value="Ayala Corporation">Ayala Corporation</SelectItem>
+              {contractorsLoading ? (
+                <SelectItem value="loading" disabled>Loading...</SelectItem>
+              ) : (
+                contractors?.map((contractor) => (
+                  <SelectItem key={contractor} value={contractor}>
+                    {contractor}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
