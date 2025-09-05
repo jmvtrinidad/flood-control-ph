@@ -1,8 +1,9 @@
-import { type Project, type InsertProject, type ProjectFilters, uploadProjectSchema } from "@shared/schema";
+import { type Project, type InsertProject, type ProjectFilters, uploadProjectSchema, projects } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { readFile } from "fs/promises";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { db } from "./db";
 
 export interface IStorage {
   initialize(): Promise<void>;
@@ -160,17 +161,61 @@ export class MemStorage implements IStorage {
       created_at: now,
       updated_at: now
     };
+    
+    // Save to memory
     this.projects.set(id, project);
+    
+    // Also save to database for foreign key constraints
+    try {
+      await db.insert(projects).values(project);
+    } catch (error) {
+      console.warn('Failed to save project to database:', error);
+      // Continue with memory storage even if DB fails
+    }
+    
     return project;
   }
 
   async createProjects(insertProjects: InsertProject[]): Promise<Project[]> {
-    const projects: Project[] = [];
+    const createdProjects: Project[] = [];
+    const projectsForDb: Project[] = [];
+    
+    // Create all projects in memory first
     for (const insertProject of insertProjects) {
-      const project = await this.createProject(insertProject);
-      projects.push(project);
+      const id = randomUUID();
+      const now = new Date();
+      const project: Project = {
+        ...insertProject,
+        status: insertProject.status || "active",
+        start_date: insertProject.start_date || null,
+        completion_date: insertProject.completion_date || null,
+        other_details: insertProject.other_details || null,
+        id,
+        created_at: now,
+        updated_at: now
+      };
+      
+      this.projects.set(id, project);
+      createdProjects.push(project);
+      projectsForDb.push(project);
     }
-    return projects;
+    
+    // Bulk save to database in batches to avoid stack overflow
+    try {
+      if (projectsForDb.length > 0) {
+        const batchSize = 100; // Process in batches of 100
+        for (let i = 0; i < projectsForDb.length; i += batchSize) {
+          const batch = projectsForDb.slice(i, i + batchSize);
+          await db.insert(projects).values(batch);
+        }
+        console.log(`Successfully saved ${projectsForDb.length} projects to database`);
+      }
+    } catch (error) {
+      console.warn('Failed to bulk save projects to database:', error);
+      // Continue with memory storage even if DB fails
+    }
+    
+    return createdProjects;
   }
 
   async updateProject(id: string, updateData: Partial<InsertProject>): Promise<Project | undefined> {
