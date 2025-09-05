@@ -211,7 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize default settings if they don't exist
       const defaultSettings = [
         { key: 'facebook_login_enabled', value: true, description: 'Enable Facebook OAuth authentication' },
-        { key: 'google_login_enabled', value: true, description: 'Enable Google OAuth authentication' }
+        { key: 'google_login_enabled', value: true, description: 'Enable Google OAuth authentication' },
+        { key: 'twitter_login_enabled', value: true, description: 'Enable Twitter/X OAuth authentication' }
       ];
 
       for (const setting of defaultSettings) {
@@ -225,7 +226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(settings)
         .where(or(
           eq(settings.key, 'facebook_login_enabled'),
-          eq(settings.key, 'google_login_enabled')
+          eq(settings.key, 'google_login_enabled'),
+          eq(settings.key, 'twitter_login_enabled')
         ));
 
       const settingsObj = authSettings.reduce((acc, setting) => {

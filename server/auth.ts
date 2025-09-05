@@ -1,6 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
+import { Strategy as TwitterStrategy } from 'passport-twitter';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
 import type { Express, Request, Response, NextFunction } from 'express';
@@ -131,6 +132,55 @@ export async function setupPassport(app: Express) {
     console.error('Error checking Facebook login setting:', error);
     // Default to disabled if there's an error
   }
+
+  // Check if Twitter login is enabled
+  try {
+    const twitterSetting = await db.select()
+      .from(settings)
+      .where(eq(settings.key, 'twitter_login_enabled'))
+      .limit(1);
+
+    const isTwitterEnabled = twitterSetting.length > 0 ? Boolean(twitterSetting[0].value) : true;
+
+    if (isTwitterEnabled && process.env.TWITTER_CONSUMER_KEY && process.env.TWITTER_CONSUMER_SECRET) {
+      // Twitter OAuth Strategy
+      passport.use(new TwitterStrategy({
+        consumerKey: process.env.TWITTER_CONSUMER_KEY!,
+        consumerSecret: process.env.TWITTER_CONSUMER_SECRET!,
+        callbackURL: process.env.REPLIT_DOMAINS 
+          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/api/auth/twitter/callback`
+          : '/api/auth/twitter/callback',
+        includeEmail: true
+      }, async (token, tokenSecret, profile, done) => {
+        try {
+          // Check if user already exists
+          const existingUser = await db.select().from(users)
+            .where(eq(users.providerId, profile.id))
+            .limit(1);
+
+          if (existingUser.length > 0) {
+            return done(null, existingUser[0]);
+          }
+
+          // Create new user
+          const newUser = await db.insert(users).values({
+            email: profile.emails?.[0]?.value || '',
+            name: profile.displayName || profile.username || '',
+            avatar: profile.photos?.[0]?.value || '',
+            provider: 'twitter',
+            providerId: profile.id,
+          }).returning();
+
+          return done(null, newUser[0]);
+        } catch (error) {
+          return done(error, undefined);
+        }
+      }));
+    }
+  } catch (error) {
+    console.error('Error checking Twitter login setting:', error);
+    // Default to disabled if there's an error
+  }
 }
 
 // Authentication middleware
@@ -161,6 +211,19 @@ export async function setupAuthRoutes(app: Express) {
     console.error('Error checking Facebook login setting for routes:', error);
     isFacebookEnabled = false;
   }
+
+  // Check if Twitter login is enabled for route setup
+  let isTwitterEnabled = true;
+  try {
+    const twitterSetting = await db.select()
+      .from(settings)
+      .where(eq(settings.key, 'twitter_login_enabled'))
+      .limit(1);
+    isTwitterEnabled = twitterSetting.length > 0 ? Boolean(twitterSetting[0].value) : true;
+  } catch (error) {
+    console.error('Error checking Twitter login setting for routes:', error);
+    isTwitterEnabled = false;
+  }
   // Google OAuth routes
   app.get('/api/auth/google',
     passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -181,6 +244,20 @@ export async function setupAuthRoutes(app: Express) {
 
     app.get('/api/auth/facebook/callback',
       passport.authenticate('facebook', { failureRedirect: '/?error=facebook_auth_failed' }),
+      (req, res) => {
+        res.redirect('/');
+      }
+    );
+  }
+
+  // Twitter OAuth routes (only if enabled)
+  if (isTwitterEnabled && process.env.TWITTER_CONSUMER_KEY && process.env.TWITTER_CONSUMER_SECRET) {
+    app.get('/api/auth/twitter',
+      passport.authenticate('twitter')
+    );
+
+    app.get('/api/auth/twitter/callback',
+      passport.authenticate('twitter', { failureRedirect: '/?error=twitter_auth_failed' }),
       (req, res) => {
         res.redirect('/');
       }
