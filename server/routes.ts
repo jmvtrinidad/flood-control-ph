@@ -306,8 +306,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Get user details for email bypass check
+      const currentUser = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      const isAdminUser = currentUser.length > 0 && currentUser[0].email === 'janmvtrinidad@gmail.com';
+
       // Calculate proximity verification if both project and user locations are available
       let isProximityVerified = false;
+      let proximityDetails = null;
+      
       if (userLocation?.latitude && userLocation?.longitude) {
         try {
           // Get project details for proximity calculation
@@ -331,13 +341,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             const distance = R * c; // Distance in km
+            const distanceInMeters = distance * 1000;
 
-            // Consider verified if within 500 meters (0.5km)
-            isProximityVerified = distance <= 0.5;
+            proximityDetails = {
+              distance: distanceInMeters,
+              required: 500, // 500 meters
+              projectLocation: { lat: projectLat, lng: projectLng },
+              userLocation: { lat: userLat, lng: userLng }
+            };
+
+            // Bypass proximity check for admin user or consider verified if within 500 meters (0.5km)
+            isProximityVerified = isAdminUser || distance <= 0.5;
           }
         } catch (proximityError) {
           console.error('Failed to calculate proximity:', proximityError);
         }
+      } else if (isAdminUser) {
+        // Admin user can rate without location
+        isProximityVerified = true;
       }
 
       // Check if user already has a reaction for this project
@@ -374,11 +395,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .returning();
       }
 
+      // Check proximity requirements before saving (unless admin user)
+      if (userLocation && proximityDetails && !isProximityVerified && !isAdminUser) {
+        return res.status(400).json({
+          error: "Proximity verification failed",
+          details: {
+            message: `You must be within ${proximityDetails.required}m of the project to rate it`,
+            distance: Math.round(proximityDetails.distance),
+            required: proximityDetails.required,
+            actualDistance: `${Math.round(proximityDetails.distance)}m`,
+            tooFar: true
+          }
+        });
+      }
+
       res.json({
         ...reaction[0],
         proximityVerified: isProximityVerified,
-        locationCaptured: !!userLocation
+        locationCaptured: !!userLocation,
+        proximityDetails,
+        isAdminBypass: isAdminUser && !proximityDetails
       });
+
     } catch (error) {
       console.error('Reaction save error:', error);
       res.status(500).json({ error: "Failed to save reaction" });

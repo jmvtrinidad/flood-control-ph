@@ -189,10 +189,21 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 description: `You rated this project as ${rating}`,
               });
             },
-            onError: () => {
+            onError: (error: any) => {
+              console.error('Rating submission error (with location):', error);
+              let description = 'Failed to submit rating';
+              
+              if (error?.details) {
+                if (error.details.tooFar) {
+                  description = `${error.details.message}. You are ${error.details.actualDistance} away but need to be within ${error.details.required}m.`;
+                } else {
+                  description = error.details.message || error.message;
+                }
+              }
+              
               toast({
-                title: 'Error',
-                description: 'Failed to submit rating',
+                title: 'Rating Failed',
+                description,
                 variant: 'destructive',
               });
             },
@@ -212,10 +223,21 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
                 description: `You rated this project as ${rating} (location not verified)`,
               });
             },
-            onError: () => {
+            onError: (error: any) => {
+              console.error('Rating submission error (no location):', error);
+              let description = 'Failed to submit rating (location not verified)';
+              
+              if (error?.details) {
+                if (error.details.tooFar) {
+                  description = `${error.details.message}. You are ${error.details.actualDistance} away but need to be within ${error.details.required}m.`;
+                } else {
+                  description = error.details.message || error.message;
+                }
+              }
+              
               toast({
-                title: 'Error',
-                description: 'Failed to submit rating',
+                title: 'Rating Failed',
+                description,
                 variant: 'destructive',
               });
             },
@@ -246,10 +268,21 @@ export function DataTableTab({ projects, isLoading, filters, onViewOnMap }: Data
             description: `You rated this project as ${rating} (location not verified)`,
           });
         },
-        onError: () => {
+        onError: (error: any) => {
+          console.error('Rating submission error (no geolocation):', error);
+          let description = 'Failed to submit rating';
+          
+          if (error?.details) {
+            if (error.details.tooFar) {
+              description = `${error.details.message}. You are ${error.details.actualDistance} away but need to be within ${error.details.required}m.`;
+            } else {
+              description = error.details.message || error.message;
+            }
+          }
+          
           toast({
-            title: 'Error',
-            description: 'Failed to submit rating',
+            title: 'Rating Failed',
+            description,
             variant: 'destructive',
           });
         },

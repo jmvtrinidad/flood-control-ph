@@ -149,10 +149,21 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         title: "Rating submitted",
         description: userLocation ? "Your rating has been submitted with location verification." : "Your rating has been submitted."
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Rating submission error (map):', error);
+      let description = "Please try again later.";
+      
+      if (error?.details) {
+        if (error.details.tooFar) {
+          description = `${error.details.message}. You are ${error.details.actualDistance} away but need to be within ${error.details.required}m.`;
+        } else {
+          description = error.details.message || error.message || description;
+        }
+      }
+      
       toast({
         title: "Failed to submit rating",
-        description: "Please try again later.",
+        description,
         variant: "destructive"
       });
     }
@@ -194,10 +205,10 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     }
 
     // Clear existing markers and circles
-    if (window.currentMarkers) {
-      window.currentMarkers.forEach((marker: any) => marker.setMap(null));
+    if ((window as any).currentMarkers) {
+      (window as any).currentMarkers.forEach((marker: any) => marker.setMap(null));
     }
-    window.currentMarkers = [];
+    (window as any).currentMarkers = [];
 
     projectCircles.forEach(circle => circle.setMap(null));
     setProjectCircles([]);
@@ -268,7 +279,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     });
 
     // Store markers globally for cleanup
-    window.currentMarkers = newMarkers;
+    (window as any).currentMarkers = newMarkers;
     setProjectCircles(newCircles);
 
     // Add user location marker if enabled
@@ -289,7 +300,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       });
       setUserLocationMarker(userMarker);
       newMarkers.push(userMarker);
-      window.currentMarkers = newMarkers;
+      (window as any).currentMarkers = newMarkers;
     }
 
     // Center on selected project if provided and not showing all
