@@ -353,6 +353,13 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         );
 
         setMap(mapInstance);
+        
+        // Trigger resize to ensure proper rendering
+        setTimeout(() => {
+          if (mapInstance && window.google && window.google.maps) {
+            window.google.maps.event.trigger(mapInstance, 'resize');
+          }
+        }, 100);
       }
     };
 
@@ -377,7 +384,11 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       // Add a small delay to ensure the map is fully ready
       const timer = setTimeout(() => {
         updateMapMarkers();
-      }, 50);
+        // Trigger resize to ensure proper rendering after data changes
+        if (window.google && window.google.maps) {
+          window.google.maps.event.trigger(map, 'resize');
+        }
+      }, 100);
       
       return () => clearTimeout(timer);
     }
@@ -387,6 +398,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   useEffect(() => {
     if (map && mapStyle) {
       map.setMapTypeId(mapStyle);
+      // Trigger resize after style change
+      setTimeout(() => {
+        if (window.google && window.google.maps) {
+          window.google.maps.event.trigger(map, 'resize');
+        }
+      }, 50);
     }
   }, [map, mapStyle]);
 
@@ -401,6 +418,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     if (map) {
       map.setCenter({ lat: 12.8797, lng: 121.7740 });
       map.setZoom(6);
+      // Trigger resize to ensure proper rendering
+      setTimeout(() => {
+        if (window.google && window.google.maps) {
+          window.google.maps.event.trigger(map, 'resize');
+        }
+      }, 100);
     }
   };
 
@@ -555,8 +578,9 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           {/* Google Maps Container */}
           <div 
             id="map-container" 
-            className="h-[600px] w-full relative"
+            className="h-[600px] w-full relative bg-gray-100"
             data-testid="map-container"
+            style={{ minHeight: '600px' }}
           >
             {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && !process.env.GOOGLE_MAPS_API_KEY && (
               <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
@@ -568,7 +592,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                 </div>
               </div>
             )}
-            {projects.length === 0 && !isLoading && (
+            {projects.length === 0 && !isLoading && map && (
               <div className="flex items-center justify-center h-full bg-muted/30 absolute inset-0 z-10">
                 <div className="text-center text-muted-foreground">
                   <MapPin className="mx-auto h-12 w-12 mb-4" />
