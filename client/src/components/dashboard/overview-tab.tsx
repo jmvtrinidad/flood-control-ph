@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { Building, DollarSign, Calculator, MapPin, TrendingUp, TrendingDown, ArrowRight, Download, Expand } from 'lucide-react';
 import { useAnalytics } from '@/hooks/use-projects';
+import { useProjectsByReactions } from '@/hooks/use-projects-by-reactions';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { ContractorList } from './contractor-list';
@@ -34,8 +35,9 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
   };
   
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics(analyticsFilters);
+  const { data: projectsByReactions, isLoading: reactionsLoading } = useProjectsByReactions();
 
-  if (isLoading || analyticsLoading) {
+  if (isLoading || analyticsLoading || reactionsLoading) {
     return (
       <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`}>
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6`}>
@@ -97,8 +99,17 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
     count: item.count
   })) || [];
 
-  // Recent projects (showing first 3)
-  const recentProjects = projects.slice(0, 3);
+  // Recent projects with ratings (showing first 3)
+  const projectsWithRatings = projectsByReactions ? 
+    projectsByReactions.flatMap(group => group.projects).slice(0, 3) : [];
+
+  // Convert contractor groups to contractor data format for ContractorList
+  const contractorsWithRatings = projectsByReactions ? 
+    projectsByReactions.map(group => ({
+      contractor: group.contractor,
+      count: group.projects.length,
+      cost: group.projects.reduce((sum, project) => sum + parseFloat(project.cost), 0)
+    })) : [];
 
   return (
     <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="overview-tab">
@@ -258,7 +269,7 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
         <Card data-testid="recent-projects">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Recent Projects</CardTitle>
+              <CardTitle>Recent Projects with Ratings</CardTitle>
               <Button variant="ghost" size="sm" data-testid="button-view-all">
                 View All <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
@@ -266,8 +277,8 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentProjects.length > 0 ? (
-                recentProjects.map((project, index) => (
+              {projectsWithRatings.length > 0 ? (
+                projectsWithRatings.map((project, index) => (
                   <div 
                     key={project.id} 
                     className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
@@ -280,6 +291,14 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
                       <div>
                         <p className="font-medium text-foreground">{project.projectname}</p>
                         <p className="text-sm text-muted-foreground">{project.location}</p>
+                        {project.averageReactionScore > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-xs text-yellow-600">★</span>
+                            <span className="text-xs text-muted-foreground">
+                              {project.averageReactionScore.toFixed(1)} ({project.reactionCount} rating{project.reactionCount !== 1 ? 's' : ''})
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -291,18 +310,18 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Building className="mx-auto h-8 w-8 mb-2" />
-                  <p className="text-sm">No projects available</p>
-                  <p className="text-xs">Upload data to get started</p>
+                  <p className="text-sm">No rated projects available</p>
+                  <p className="text-xs">Projects will appear here when users provide ratings</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Contractor List */}
+        {/* Contractor List - Only contractors with ratings */}
         <ContractorList 
-          contractors={analytics?.projectsByContractor || []}
-          title="Top Performing Contractors"
+          contractors={contractorsWithRatings}
+          title="Top Rated Contractors"
           useFullCost={useFullCost}
           onUseFullCostChange={setUseFullCost}
         />
