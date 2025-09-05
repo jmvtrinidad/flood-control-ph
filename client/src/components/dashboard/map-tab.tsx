@@ -188,6 +188,122 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     }
   };
 
+  const updateMapMarkers = () => {
+    if (!map || !window.google || !window.google.maps) {
+      return;
+    }
+
+    // Clear existing markers and circles
+    if (window.currentMarkers) {
+      window.currentMarkers.forEach((marker: any) => marker.setMap(null));
+    }
+    window.currentMarkers = [];
+
+    projectCircles.forEach(circle => circle.setMap(null));
+    setProjectCircles([]);
+
+    if (userLocationMarker) {
+      userLocationMarker.setMap(null);
+      setUserLocationMarker(null);
+    }
+
+    // Filter projects to display based on mode
+    const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
+    
+    // Add markers for projects
+    const newCircles: any[] = [];
+    const newMarkers: any[] = [];
+    
+    projectsToDisplay.forEach((project) => {
+      const projectLat = parseFloat(project.latitude);
+      const projectLng = parseFloat(project.longitude);
+      
+      // Determine marker color based on proximity to user location (500m for rating eligibility)
+      let canRate = false;
+      if (userLocation && showCurrentLocation) {
+        const distance = calculateDistance(userLocation.latitude, userLocation.longitude, projectLat, projectLng);
+        canRate = distance <= 0.5; // 500 meters
+      }
+      
+      // Create marker with appropriate color
+      const markerColor = selectedProject?.id === project.id ? '#FF4444' :
+                         canRate ? '#22C55E' : // Green for can rate
+                         showCurrentLocation ? '#EF4444' : '#3B82F6'; // Red for can't rate, blue for default
+      
+      const marker = new window.google.maps.Marker({
+        position: { lat: projectLat, lng: projectLng },
+        map: map,
+        title: project.projectname,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">' +
+            '<path d="M12 0C5.4 0 0 5.4 0 12s12 24 12 24 12-17.6 12-24S18.6 0 12 0z" fill="' + markerColor + '"/>' +
+            '<circle cx="12" cy="12" r="6" fill="white"/>' +
+            '</svg>'
+          ),
+          scaledSize: new window.google.maps.Size(24, 36)
+        },
+      });
+
+      marker.addListener('click', () => {
+        setCurrentSelectedProject(project);
+      });
+      
+      newMarkers.push(marker);
+      
+      // Add 10km radius circle when location is shown
+      if (showCurrentLocation && userLocation) {
+        const circle = new window.google.maps.Circle({
+          strokeColor: canRate ? '#22C55E' : '#EF4444',
+          strokeOpacity: 0.6,
+          strokeWeight: 2,
+          fillColor: canRate ? '#22C55E' : '#EF4444',
+          fillOpacity: 0.1,
+          map: map,
+          center: { lat: projectLat, lng: projectLng },
+          radius: 10000, // 10km in meters
+        });
+        newCircles.push(circle);
+      }
+    });
+
+    // Store markers globally for cleanup
+    window.currentMarkers = newMarkers;
+    setProjectCircles(newCircles);
+
+    // Add user location marker if enabled
+    if (showCurrentLocation && userLocation) {
+      const userMarker = new window.google.maps.Marker({
+        position: { lat: userLocation.latitude, lng: userLocation.longitude },
+        map: map,
+        title: 'Your Location',
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">' +
+            '<circle cx="10" cy="10" r="8" fill="#3B82F6" stroke="white" stroke-width="2"/>' +
+            '<circle cx="10" cy="10" r="3" fill="white"/>' +
+            '</svg>'
+          ),
+          scaledSize: new window.google.maps.Size(20, 20)
+        },
+      });
+      setUserLocationMarker(userMarker);
+      newMarkers.push(userMarker);
+      window.currentMarkers = newMarkers;
+    }
+
+    // Center on selected project if provided and not showing all
+    if (selectedProject && selectedProject.latitude && selectedProject.longitude && !showAllProjects) {
+      const selectedLocation = {
+        lat: parseFloat(selectedProject.latitude),
+        lng: parseFloat(selectedProject.longitude)
+      };
+      map.setCenter(selectedLocation);
+      map.setZoom(12);
+      setCurrentSelectedProject(selectedProject);
+    }
+  };
+
   useEffect(() => {
     const initializeMap = () => {
       if (window.google && window.google.maps) {
@@ -198,6 +314,12 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           console.warn('Map container not found, retrying...');
           // Retry after a short delay to allow DOM to render
           setTimeout(initializeMap, 100);
+          return;
+        }
+
+        // Don't recreate map if it already exists
+        if (map) {
+          updateMapMarkers();
           return;
         }
 
@@ -326,7 +448,21 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     } else {
       initializeMap();
     }
-  }, [projects, mapStyle, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
+  }, []); // Only run once on mount
+
+  // Update markers when filters or data change
+  useEffect(() => {
+    if (map) {
+      updateMapMarkers();
+    }
+  }, [map, projects, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
+
+  // Handle map style changes separately
+  useEffect(() => {
+    if (map && mapStyle) {
+      map.setMapTypeId(mapStyle);
+    }
+  }, [map, mapStyle]);
 
   const handleStyleChange = (newStyle: string) => {
     setMapStyle(newStyle);
