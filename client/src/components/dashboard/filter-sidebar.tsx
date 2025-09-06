@@ -2,7 +2,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Search } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
+import { Search, MapPin, Building2, Calendar, Filter, X } from 'lucide-react';
 import type { ProjectFilters, Project } from '@/types/project';
 import { useContractors } from '@/hooks/use-contractors';
 import { useFiscalYears } from '@/hooks/use-fiscal-years';
@@ -23,6 +25,186 @@ export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projec
   const { data: contractors, isLoading: contractorsLoading } = useContractors();
   const { data: fiscalYears, isLoading: fiscalYearsLoading } = useFiscalYears();
 
+  // Count active filters
+  const activeFiltersCount = Object.values(filters).filter(value => value !== undefined && value !== '').length;
+
+  // Collapsed view with icon buttons
+  if (collapsed) {
+    return (
+      <aside className="w-16 border-r border-border bg-card/30 h-full overflow-y-auto max-h-[calc(100vh-80px)]">
+        <div className="p-2 space-y-3">
+          {/* Search Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={searchQuery ? "default" : "ghost"} size="sm" className="w-12 h-12 p-0">
+                <Search className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" className="w-80">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Search</Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    className="pl-10"
+                    placeholder="Search projects, locations, contractors..."
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Region Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={filters.region ? "default" : "ghost"} size="sm" className="w-12 h-12 p-0 relative">
+                <MapPin className="h-4 w-4" />
+                {filters.region && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">1</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" className="w-80">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Region</Label>
+                <Select
+                  value={filters.region || ''}
+                  onValueChange={(value) => onFiltersChange({ region: value === 'all' ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Regions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Regions</SelectItem>
+                    <SelectItem value="NCR">National Capital Region</SelectItem>
+                    <SelectItem value="Region I">Region I - Ilocos</SelectItem>
+                    <SelectItem value="Region II">Region II - Cagayan Valley</SelectItem>
+                    <SelectItem value="Region III">Region III - Central Luzon</SelectItem>
+                    <SelectItem value="Region IV-A">Region IV-A - CALABARZON</SelectItem>
+                    <SelectItem value="Region IV-B">Region IV-B - MIMAROPA</SelectItem>
+                    <SelectItem value="Region V">Region V - Bicol</SelectItem>
+                    <SelectItem value="Region VI">Region VI - Western Visayas</SelectItem>
+                    <SelectItem value="Region VII">Region VII - Central Visayas</SelectItem>
+                    <SelectItem value="Region VIII">Region VIII - Eastern Visayas</SelectItem>
+                    <SelectItem value="Region IX">Region IX - Zamboanga Peninsula</SelectItem>
+                    <SelectItem value="Region X">Region X - Northern Mindanao</SelectItem>
+                    <SelectItem value="Region XI">Region XI - Davao</SelectItem>
+                    <SelectItem value="Region XII">Region XII - SOCCSKSARGEN</SelectItem>
+                    <SelectItem value="Region XIII">Region XIII - Caraga</SelectItem>
+                    <SelectItem value="BARMM">BARMM</SelectItem>
+                    <SelectItem value="CAR">CAR - Cordillera</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Contractor Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={filters.contractor ? "default" : "ghost"} size="sm" className="w-12 h-12 p-0 relative">
+                <Building2 className="h-4 w-4" />
+                {filters.contractor && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">1</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" className="w-80">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Contractor</Label>
+                <Select
+                  value={filters.contractor || ''}
+                  onValueChange={(value) => onFiltersChange({ contractor: value === 'all' ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Contractors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Contractors</SelectItem>
+                    {contractorsLoading ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : (
+                      contractors?.map((contractor) => (
+                        <SelectItem key={contractor} value={contractor}>
+                          {contractor}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Fiscal Year Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={filters.fiscalYear ? "default" : "ghost"} size="sm" className="w-12 h-12 p-0 relative">
+                <Calendar className="h-4 w-4" />
+                {filters.fiscalYear && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">1</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" className="w-80">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Fiscal Year</Label>
+                <Select
+                  value={filters.fiscalYear || ''}
+                  onValueChange={(value) => onFiltersChange({ fiscalYear: value === 'all' ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {fiscalYearsLoading ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : (
+                      fiscalYears?.map((fiscalYear) => (
+                        <SelectItem key={fiscalYear} value={fiscalYear}>
+                          {fiscalYear}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Clear Filters */}
+          {activeFiltersCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-12 h-12 p-0"
+              onClick={onClearFilters}
+              title="Clear All Filters"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Active Filters Count */}
+          {activeFiltersCount > 0 && (
+            <div className="flex justify-center">
+              <Badge variant="secondary" className="text-xs">
+                {activeFiltersCount}
+              </Badge>
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  // Expanded view (original layout)
   return (
     <aside className="w-80 border-r border-border bg-card/30 h-full overflow-y-auto max-h-[calc(100vh-80px)]">
       <div className="p-6 space-y-6">

@@ -116,7 +116,7 @@ export default function Dashboard() {
       <div className="flex h-[calc(100vh-80px)]">
         {/* Desktop Sidebar */}
         {!isMobile && (
-          <div className={`relative transition-all duration-300 ${sidebarCollapsed ? 'w-0' : 'w-80'}`}>
+          <div className={`relative transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-80'}`}>
             {/* Sidebar Toggle Button */}
             <Button
               variant="outline"
@@ -133,17 +133,15 @@ export default function Dashboard() {
             </Button>
             
             {/* Sidebar Content */}
-            <div className={`transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-              <FilterSidebar 
-                filters={filters}
-                onFiltersChange={updateFilters}
-                onClearFilters={clearFilters}
-                projects={projects}
-                searchQuery={searchQuery}
-                onSearchChange={handleSearchChange}
-                collapsed={sidebarCollapsed}
-              />
-            </div>
+            <FilterSidebar 
+              filters={filters}
+              onFiltersChange={updateFilters}
+              onClearFilters={clearFilters}
+              projects={projects}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              collapsed={sidebarCollapsed}
+            />
           </div>
         )}
 
