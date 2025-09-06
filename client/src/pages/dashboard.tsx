@@ -13,7 +13,7 @@ import { useFilters } from '@/hooks/use-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Filter, Menu } from 'lucide-react';
+import { Filter, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type Tab = 'overview' | 'data-table' | 'analytics' | 'map';
 
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [location, setLocation] = useLocation();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { filters, updateFilters, clearFilters } = useFilters();
   const isMobile = useIsMobile();
   
@@ -115,14 +116,35 @@ export default function Dashboard() {
       <div className="flex h-[calc(100vh-80px)]">
         {/* Desktop Sidebar */}
         {!isMobile && (
-          <FilterSidebar 
-            filters={filters}
-            onFiltersChange={updateFilters}
-            onClearFilters={clearFilters}
-            projects={projects}
-            searchQuery={searchQuery}
-            onSearchChange={handleSearchChange}
-          />
+          <div className={`relative transition-all duration-300 ${sidebarCollapsed ? 'w-0' : 'w-80'}`}>
+            {/* Sidebar Toggle Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute -right-4 top-4 z-10 h-8 w-8 p-0 bg-background border shadow-md hover:shadow-lg"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              data-testid="button-toggle-sidebar"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+            
+            {/* Sidebar Content */}
+            <div className={`transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <FilterSidebar 
+                filters={filters}
+                onFiltersChange={updateFilters}
+                onClearFilters={clearFilters}
+                projects={projects}
+                searchQuery={searchQuery}
+                onSearchChange={handleSearchChange}
+                collapsed={sidebarCollapsed}
+              />
+            </div>
+          </div>
         )}
 
         {/* Mobile Filter Sheet */}

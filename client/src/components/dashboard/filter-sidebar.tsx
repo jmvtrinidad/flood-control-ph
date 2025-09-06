@@ -14,16 +14,17 @@ interface FilterSidebarProps {
   projects?: Project[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  collapsed?: boolean;
 }
 
-export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [], searchQuery, onSearchChange }: FilterSidebarProps) {
+export function FilterSidebar({ filters, onFiltersChange, onClearFilters, projects = [], searchQuery, onSearchChange, collapsed = false }: FilterSidebarProps) {
   // Get unique locations from projects data
   const uniqueLocations = Array.from(new Set(projects.map(p => p.location))).sort();
   const { data: contractors, isLoading: contractorsLoading } = useContractors();
   const { data: fiscalYears, isLoading: fiscalYearsLoading } = useFiscalYears();
 
   return (
-    <aside className="w-80 border-r border-border bg-card/30 overflow-y-auto">
+    <aside className="w-80 border-r border-border bg-card/30 h-full overflow-y-auto max-h-[calc(100vh-80px)]">
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Filters</h2>
