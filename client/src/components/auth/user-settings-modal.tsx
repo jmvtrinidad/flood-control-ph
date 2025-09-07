@@ -59,13 +59,23 @@ export function UserSettingsModal({ isOpen, onClose, user }: UserSettingsModalPr
     e.preventDefault();
     
     // Validate username
-    if (username.length > 0 && (username.length < 3 || username.length > 20)) {
-      toast({
-        title: "Invalid username",
-        description: "Username must be between 3 and 20 characters.",
-        variant: "destructive",
-      });
-      return;
+    if (username.length > 0) {
+      if (username.length < 3 || username.length > 20) {
+        toast({
+          title: "Invalid username",
+          description: "Username must be between 3 and 20 characters.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        toast({
+          title: "Invalid username",
+          description: "Username can only contain letters, numbers, and underscores.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     updateMutation.mutate(username);
@@ -105,8 +115,8 @@ export function UserSettingsModal({ isOpen, onClose, user }: UserSettingsModalPr
               data-testid="input-username"
             />
             <p className="text-xs text-muted-foreground">
-              If set, your username will be shown instead of your display name when posting reactions.
-              Leave empty to use your display name.
+              If set, your username will be shown instead of your display name in leaderboards and when posting reactions.
+              Leave empty to use your display name. Must be 3-20 characters, letters, numbers, and underscores only.
             </p>
           </div>
 
