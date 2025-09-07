@@ -4,8 +4,8 @@ export interface LeaderboardUser {
   user: {
     id: string;
     name: string;
-    username?: string;
-    avatar?: string;
+    username?: string | null;
+    avatar?: string | null;
     provider: string;
   };
   reactionCount: number;

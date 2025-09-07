@@ -489,6 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user: {
             id: users.id,
             name: users.name,
+            username: users.username,
             avatar: users.avatar,
             isLocationVerified: users.isLocationVerified,
           },
@@ -852,6 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user: {
             id: users.id,
             name: users.name,
+            username: users.username,
             avatar: users.avatar,
             provider: users.provider,
           },
@@ -861,7 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(users)
         .leftJoin(reactions, eq(users.id, reactions.userId))
-        .groupBy(users.id, users.name, users.avatar, users.provider)
+        .groupBy(users.id, users.name, users.username, users.avatar, users.provider)
         .having(sql`count(${reactions.id}) > 0`)
         .orderBy(sql`count(${reactions.id}) DESC`)
         .limit(20);

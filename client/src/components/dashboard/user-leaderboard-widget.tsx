@@ -11,7 +11,8 @@ import { Trophy, Medal, Award, Star, ThumbsUp, AlertTriangle, Ghost, MapPin, Cal
 import { format } from 'date-fns';
 
 // Function to generate a random color based on username for anonymous avatar
-function getRandomColor(username: string) {
+function getRandomColor(username: string | null | undefined) {
+  if (!username) return 'bg-gray-500';
   const hash = username.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0);
     return a & a;
@@ -66,7 +67,7 @@ function UserReactionDetails({ user, trigger }: UserReactionDetailsProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.username ? undefined : user.avatar} alt={user.name} />
+              <AvatarImage src={user.username ? undefined : user.avatar || undefined} alt={user.name} />
               <AvatarFallback className={user.username ? getRandomColor(user.username) : ''}>
                 {(user.username || user.name).charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -209,7 +210,7 @@ export function UserLeaderboardWidget() {
                         {getRankIcon(index)}
                       </div>
                       <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={entry.user.username ? undefined : entry.user.avatar} alt={entry.user.name} />
+                        <AvatarImage src={entry.user.username ? undefined : entry.user.avatar || undefined} alt={entry.user.name} />
                         <AvatarFallback className={entry.user.username ? getRandomColor(entry.user.username) : ''}>
                           {(entry.user.username || entry.user.name).charAt(0).toUpperCase()}
                         </AvatarFallback>
