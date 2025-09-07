@@ -338,20 +338,47 @@ export async function setupAuthRoutes(app: Express) {
   app.put('/api/auth/user/settings', requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const { name } = req.body;
+      const { name, username } = req.body;
 
       // Validate name
       if (name && (name.length < 1 || name.length > 50)) {
         return res.status(400).json({ error: 'Name must be between 1 and 50 characters' });
       }
 
+      // Validate username
+      if (username !== undefined && username !== null && username !== '') {
+        if (username.length < 3 || username.length > 20) {
+          return res.status(400).json({ error: 'Username must be between 3 and 20 characters' });
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+          return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
+        }
+      }
+
+      // Check if username already exists (only if username is being set)
+      if (username && username.trim() !== '') {
+        const existingUser = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.username, username.trim()))
+          .limit(1);
+        
+        if (existingUser.length > 0 && existingUser[0].id !== userId) {
+          return res.status(400).json({ error: 'Username already taken' });
+        }
+      }
+
+      // Prepare update data
+      const updateData: any = { updated_at: new Date() };
+      if (name !== undefined) updateData.name = name || null;
+      if (username !== undefined) {
+        updateData.username = username && username.trim() !== '' ? username.trim() : null;
+      }
+
       // Update user
       const updatedUser = await db
         .update(users)
-        .set({ 
-          name: name || null,
-          updated_at: new Date()
-        })
+        .set(updateData)
         .where(eq(users.id, userId))
         .returning();
 
