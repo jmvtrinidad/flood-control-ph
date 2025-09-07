@@ -70,6 +70,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique().notNull(),
   name: text("name").notNull(),
+  username: varchar("username").unique(), // Optional unique username for leaderboards
   avatar: text("avatar"), // Profile picture URL
   provider: text("provider").notNull(), // 'google' or 'facebook'
   providerId: text("provider_id").notNull(), // ID from OAuth provider
