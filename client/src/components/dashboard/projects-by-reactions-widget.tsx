@@ -110,10 +110,10 @@ export function ProjectsByReactionsWidget() {
                     {contractorGroup.contractor}
                   </h4>
                 </div>
-                {contractorGroup.bestScore > 0 && (
+                {contractorGroup.bestScore && contractorGroup.bestScore > 0 && (
                   <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRatingColor(contractorGroup.bestScore)}`}>
                     {getRatingIcon(contractorGroup.bestScore)}
-                    {contractorGroup.bestScore.toFixed(1)}
+                    {Number(contractorGroup.bestScore).toFixed(1)}
                   </div>
                 )}
               </div>
@@ -143,10 +143,10 @@ export function ProjectsByReactionsWidget() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 ml-2">
-                      {project.averageReactionScore > 0 ? (
+                      {project.averageReactionScore && project.averageReactionScore > 0 ? (
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRatingColor(project.averageReactionScore)}`}>
                           {getRatingIcon(project.averageReactionScore)}
-                          {project.averageReactionScore.toFixed(1)}
+                          {Number(project.averageReactionScore).toFixed(1)}
                         </div>
                       ) : (
                         <Badge variant="secondary" className="text-xs">

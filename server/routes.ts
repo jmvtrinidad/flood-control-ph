@@ -115,13 +115,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Aggregate reaction data per project
           reactionCount: sql<number>`count(${reactions.id})`.as('reaction_count'),
           averageScore: sql<number>`
-            avg(case
-              when ${reactions.rating} = 'excellent' then 4
-              when ${reactions.rating} = 'standard' then 3
-              when ${reactions.rating} = 'sub-standard' then 2
-              when ${reactions.rating} = 'ghost' then 1
-              else 0
-            end)
+            coalesce(
+              avg(case
+                when ${reactions.rating} = 'excellent' then 4
+                when ${reactions.rating} = 'standard' then 3
+                when ${reactions.rating} = 'sub-standard' then 2
+                when ${reactions.rating} = 'ghost' then 1
+                else 0
+              end),
+              0
+            )
           `.as('average_score'),
           totalRatings: sql<number>`count(${reactions.id})`.as('total_ratings'),
           ghostCount: sql<number>`
