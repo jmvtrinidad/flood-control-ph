@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { BarChart, Table, TrendingUp, Map } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type Tab = 'overview' | 'data-table' | 'analytics' | 'map';
+type Tab = 'overview' | 'data-table' | 'map';
 
 interface TabNavigationProps {
   activeTab: Tab;
@@ -11,11 +11,10 @@ interface TabNavigationProps {
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const isMobile = useIsMobile();
-  
+
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview', shortLabel: 'Overview', icon: BarChart },
     { id: 'data-table' as Tab, label: 'Data Table', shortLabel: 'Table', icon: Table },
-    { id: 'analytics' as Tab, label: 'Analytics', shortLabel: 'Charts', icon: TrendingUp },
     { id: 'map' as Tab, label: 'Map View', shortLabel: 'Map', icon: Map },
   ];
 

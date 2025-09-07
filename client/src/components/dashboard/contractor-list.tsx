@@ -18,13 +18,15 @@ interface ContractorListProps {
   title?: string;
   useFullCost?: boolean;
   onUseFullCostChange?: (checked: boolean) => void;
+  onContractorSelect?: (contractor: string) => void;
 }
 
-export function ContractorList({ 
-  contractors, 
-  title = "Top Contractors", 
+export function ContractorList({
+  contractors,
+  title = "Top Contractors",
   useFullCost = false,
-  onUseFullCostChange 
+  onUseFullCostChange,
+  onContractorSelect
 }: ContractorListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'projects' | 'cost'>('projects');
@@ -84,17 +86,17 @@ export function ContractorList({
             </Select>
           </div>
         </div>
-        
+
         {onUseFullCostChange && (
           <div className="flex items-center space-x-2 pt-2 border-t">
-            <Checkbox 
+            <Checkbox
               id="use-full-cost"
               checked={useFullCost}
               onCheckedChange={onUseFullCostChange}
               data-testid="checkbox-use-full-cost"
             />
-            <label 
-              htmlFor="use-full-cost" 
+            <label
+              htmlFor="use-full-cost"
               className="text-sm text-muted-foreground cursor-pointer flex items-center"
             >
               Use full project cost for joint ventures
@@ -115,7 +117,7 @@ export function ContractorList({
             <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
               <div className="col-span-1">#</div>
               <div className="col-span-6">Contractor Name</div>
-              <div className="col-span-2 cursor-pointer flex items-center hover:text-foreground" 
+              <div className="col-span-2 cursor-pointer flex items-center hover:text-foreground"
                    onClick={() => handleSort('projects')}
                    data-testid="sort-projects">
                 Projects
@@ -133,8 +135,9 @@ export function ContractorList({
             {currentContractors.map((contractor, index) => {
               const globalRank = startIndex + index + 1;
               return (
-                <div key={contractor.contractor} 
-                     className="grid grid-cols-12 gap-4 items-center py-2 hover:bg-muted/50 rounded-lg px-2"
+                <div key={contractor.contractor}
+                     className="grid grid-cols-12 gap-4 items-center py-2 hover:bg-muted/50 rounded-lg px-2 cursor-pointer"
+                     onClick={() => onContractorSelect?.(contractor.contractor)}
                      data-testid={`contractor-row-${globalRank}`}>
                   <div className="col-span-1 text-sm text-muted-foreground">
                     {globalRank}
@@ -178,7 +181,7 @@ export function ContractorList({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
+
               {/* Page Numbers */}
               <div className="flex items-center space-x-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -192,7 +195,7 @@ export function ContractorList({
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  
+
                   return (
                     <Button
                       key={pageNum}

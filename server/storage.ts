@@ -37,7 +37,7 @@ export class MemStorage implements IStorage {
       // Load the initial dataset from the JSON file
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = dirname(__filename);
-      
+
       // Try multiple possible paths for the data file
       const possiblePaths = [
         join(__dirname, 'initial-data.json'),
@@ -45,10 +45,10 @@ export class MemStorage implements IStorage {
         join(process.cwd(), 'server', 'initial-data.json'),
         'server/initial-data.json'
       ];
-      
+
       let rawData: string | null = null;
       let usedPath: string | null = null;
-      
+
       for (const dataPath of possiblePaths) {
         try {
           rawData = await readFile(dataPath, 'utf-8');
@@ -59,13 +59,13 @@ export class MemStorage implements IStorage {
           continue;
         }
       }
-      
+
       if (!rawData) {
         throw new Error('Could not find initial-data.json in any expected location');
       }
       const parsedData = JSON.parse(rawData);
       console.log(`Successfully loaded data from: ${usedPath}`);
-      
+
       // Validate and create projects
       const validProjects: InsertProject[] = [];
       for (const item of parsedData) {
@@ -86,7 +86,7 @@ export class MemStorage implements IStorage {
           continue;
         }
       }
-      
+
       // Create all valid projects
       await this.createProjects(validProjects);
       console.log(`Loaded ${validProjects.length} infrastructure projects from initial dataset`);
@@ -102,7 +102,7 @@ export class MemStorage implements IStorage {
     if (filters) {
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
-        projects = projects.filter(p => 
+        projects = projects.filter(p =>
           p.projectname.toLowerCase().includes(searchLower) ||
           p.location.toLowerCase().includes(searchLower) ||
           p.contractor.toLowerCase().includes(searchLower) ||
@@ -124,7 +124,13 @@ export class MemStorage implements IStorage {
       }
 
       if (filters.contractor) {
-        projects = projects.filter(p => p.contractor === filters.contractor);
+        projects = projects.filter(p => {
+          // Split contractor names by "/" and check if any match the filter
+          const projectContractors = p.contractor.split('/').map(c => c.trim());
+          return projectContractors.some(contractor =>
+            contractor.toLowerCase() === filters.contractor!.toLowerCase()
+          );
+        });
       }
 
       if (filters.fiscalYear) {
@@ -161,10 +167,10 @@ export class MemStorage implements IStorage {
       created_at: now,
       updated_at: now
     };
-    
+
     // Save to memory
     this.projects.set(id, project);
-    
+
     // Also save to database for foreign key constraints
     try {
       await db.insert(projects).values(project);
@@ -172,30 +178,30 @@ export class MemStorage implements IStorage {
       console.warn('Failed to save project to database:', error);
       // Continue with memory storage even if DB fails
     }
-    
+
     return project;
   }
 
   async createProjects(insertProjects: InsertProject[]): Promise<Project[]> {
     const createdProjects: Project[] = [];
-    
+
     // For bulk loading, check if database is empty to avoid deleting existing data
     if (insertProjects.length > 500) {
       console.log('Bulk loading detected, checking database status...');
-      
+
       try {
         const existingCount = await db.select().from(projects);
-        
+
         if (existingCount.length > 0) {
           console.log(`Database already contains ${existingCount.length} projects, loading from database to sync with memory...`);
-          
+
           // Clear memory and load existing projects from database
           this.projects.clear();
           for (const existingProject of existingCount) {
             this.projects.set(existingProject.id, existingProject);
             createdProjects.push(existingProject);
           }
-          
+
           console.log(`Synchronized ${existingCount.length} existing projects from database to memory`);
           return createdProjects;
         } else {
@@ -207,7 +213,7 @@ export class MemStorage implements IStorage {
         this.projects.clear();
       }
     }
-    
+
     // Create all projects with same IDs for both memory and database
     for (const insertProject of insertProjects) {
       const id = randomUUID();
@@ -222,11 +228,11 @@ export class MemStorage implements IStorage {
         created_at: now,
         updated_at: now
       };
-      
+
       this.projects.set(id, project);
       createdProjects.push(project);
     }
-    
+
     // Bulk save to database in batches using the SAME projects from memory
     try {
       if (createdProjects.length > 0) {
@@ -241,7 +247,7 @@ export class MemStorage implements IStorage {
       console.warn('Failed to bulk save projects to database:', error);
       // Continue with memory storage even if DB fails
     }
-    
+
     return createdProjects;
   }
 
@@ -268,7 +274,7 @@ export class MemStorage implements IStorage {
 
   async getAnalytics(filters?: any) {
     let projects = Array.from(this.projects.values());
-    
+
     // Apply filters if provided
     if (filters) {
       projects = projects.filter(project => {
@@ -321,7 +327,7 @@ export class MemStorage implements IStorage {
         if (filters.dateRange) {
           const now = new Date();
           let cutoffDate: Date;
-          
+
           switch (filters.dateRange) {
             case '12months':
               cutoffDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
@@ -335,31 +341,31 @@ export class MemStorage implements IStorage {
             default:
               cutoffDate = new Date(0);
           }
-          
+
           // Check if project falls within date range using start_date or completion_date
           const projectStartDate = project.start_date ? new Date(project.start_date) : null;
           const projectCompletionDate = project.completion_date ? new Date(project.completion_date) : null;
-          
-          const hasValidDate = (projectStartDate && projectStartDate >= cutoffDate) || 
+
+          const hasValidDate = (projectStartDate && projectStartDate >= cutoffDate) ||
                               (projectCompletionDate && projectCompletionDate >= cutoffDate);
-          
+
           if (!hasValidDate && filters.dateRange !== 'alltime') {
             return false;
           }
         }
 
-        // Custom date range filter  
+        // Custom date range filter
         if (filters.dateFrom || filters.dateTo) {
           const projectStartDate = project.start_date ? new Date(project.start_date) : null;
           const projectCompletionDate = project.completion_date ? new Date(project.completion_date) : null;
-          
+
           if (filters.dateFrom) {
             const fromDate = new Date(filters.dateFrom);
             const hasValidFromDate = (projectStartDate && projectStartDate >= fromDate) ||
                                     (projectCompletionDate && projectCompletionDate >= fromDate);
             if (!hasValidFromDate) return false;
           }
-          
+
           if (filters.dateTo) {
             const toDate = new Date(filters.dateTo);
             const hasValidToDate = (projectStartDate && projectStartDate <= toDate) ||
@@ -414,11 +420,11 @@ export class MemStorage implements IStorage {
     projects.forEach(p => {
       const projectCost = parseFloat(p.cost);
       const contractors = p.contractor.split('/').map(c => c.trim());
-      
+
       // Choose cost calculation method based on filter option
       const useFullCost = filters?.useFullCostForJointVentures || false;
       const costPerContractor = useFullCost ? projectCost : projectCost / contractors.length;
-      
+
       contractors.forEach(contractor => {
         if (contractor) { // Only process non-empty contractor names
           const existing = contractorMap.get(contractor) || { count: 0, cost: 0 };

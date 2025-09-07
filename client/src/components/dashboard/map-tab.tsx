@@ -33,7 +33,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
   const [userLocationMarker, setUserLocationMarker] = useState<any>(null);
   const [projectCircles, setProjectCircles] = useState<any[]>([]);
   const isMobile = useIsMobile();
-  
+
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
   const addReaction = useAddReaction();
@@ -146,7 +146,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
         rating,
         userLocation: userLocation || undefined
       });
-      
+
       toast({
         title: "Rating submitted",
         description: userLocation ? "Your rating has been submitted with location verification." : "Your rating has been submitted."
@@ -154,7 +154,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     } catch (error: any) {
       console.error('Rating submission error (map):', error);
       let description = "Please try again later.";
-      
+
       if (error?.details) {
         if (error.details.tooFar) {
           description = `${error.details.message}. You are ${error.details.actualDistance} away but need to be within ${error.details.required}m.`;
@@ -162,7 +162,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           description = error.details.message || error.message || description;
         }
       }
-      
+
       toast({
         title: "Failed to submit rating",
         description,
@@ -231,27 +231,27 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
 
     // Filter projects to display based on mode
     const projectsToDisplay = showAllProjects ? projects : (selectedProject ? [selectedProject] : []);
-    
+
     // Add markers for projects
     const newCircles: any[] = [];
     const newMarkers: any[] = [];
-    
+
     projectsToDisplay.forEach((project) => {
       const projectLat = parseFloat(project.latitude);
       const projectLng = parseFloat(project.longitude);
-      
+
       // Determine marker color based on proximity to user location (500m for rating eligibility)
       let canRate = false;
       if (userLocation && showCurrentLocation) {
         const distance = calculateDistance(userLocation.latitude, userLocation.longitude, projectLat, projectLng);
         canRate = distance <= 0.5; // 500 meters
       }
-      
+
       // Create marker with appropriate color
       const markerColor = selectedProject?.id === project.id ? '#FF4444' :
                          canRate ? '#22C55E' : // Green for can rate
                          showCurrentLocation ? '#EF4444' : '#3B82F6'; // Red for can't rate, blue for default
-      
+
       const marker = new window.google.maps.Marker({
         position: { lat: projectLat, lng: projectLng },
         map: map,
@@ -270,9 +270,9 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       marker.addListener('click', () => {
         setCurrentSelectedProject(project);
       });
-      
+
       newMarkers.push(marker);
-      
+
       // Add 10km radius circle when location is shown
       if (showCurrentLocation && userLocation) {
         const circle = new window.google.maps.Circle({
@@ -334,10 +334,10 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
     const initializeMap = () => {
       if (window.google && window.google.maps) {
         const mapContainer = document.getElementById('map-container');
-        
-        // Check if map container exists before initializing
-        if (!mapContainer) {
-          console.warn('Map container not found, retrying...');
+
+        // Check if map container exists and is a proper Element
+        if (!mapContainer || !(mapContainer instanceof Element)) {
+          console.warn('Map container not found or not an Element, retrying...');
           // Retry after a short delay to allow DOM to render
           setTimeout(initializeMap, 100);
           return;
@@ -355,20 +355,26 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           mapTypeId: mapStyle,
         };
 
-        const mapInstance = new window.google.maps.Map(
-          mapContainer,
-          mapOptions
-        );
+        try {
+          const mapInstance = new window.google.maps.Map(
+            mapContainer,
+            mapOptions
+          );
 
-        setMap(mapInstance);
-        console.log('New map instance created');
+          setMap(mapInstance);
+          console.log('New map instance created');
+        } catch (error) {
+          console.error('Error creating map instance:', error);
+          // Retry after a longer delay if map creation fails
+          setTimeout(initializeMap, 500);
+        }
       }
     };
 
     // Load Google Maps API if not already loaded
     if (!window.google) {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
-      
+
       if (apiKey) {
         const script = document.createElement('script');
         script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
@@ -387,7 +393,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
       const timer = setTimeout(() => {
         updateMapMarkers();
       }, 150);
-      
+
       return () => clearTimeout(timer);
     }
   }, [map, projects, showAllProjects, selectedProject, showCurrentLocation, userLocation]);
@@ -458,7 +464,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           <h2 className="text-xl font-semibold text-foreground">Project Locations</h2>
           {selectedProject && (
             <div className="flex items-center space-x-2">
-              <Button 
+              <Button
                 variant={showAllProjects ? "outline" : "default"}
                 size="sm"
                 onClick={() => setShowAllProjects(false)}
@@ -467,7 +473,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                 <MapPin className="mr-2 h-4 w-4" />
                 Show Selected Only
               </Button>
-              <Button 
+              <Button
                 variant={showAllProjects ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowAllProjects(true)}
@@ -479,9 +485,9 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <Button 
-            variant={showCurrentLocation ? "default" : "outline"} 
-            size="sm" 
+          <Button
+            variant={showCurrentLocation ? "default" : "outline"}
+            size="sm"
             onClick={toggleCurrentLocation}
             data-testid="button-toggle-location"
           >
@@ -576,8 +582,8 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           </div>
 
           {/* Google Maps Container */}
-          <div 
-            id="map-container" 
+          <div
+            id="map-container"
             className="h-[600px] w-full relative bg-gray-100"
             data-testid="map-container"
             style={{ minHeight: '600px' }}
@@ -605,7 +611,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           {/* Map Footer Info */}
           <div className="px-4 py-2 bg-muted/20 border-t border-border flex items-center justify-between text-sm">
             <div className="text-muted-foreground" data-testid="map-info">
-              <span>{projectsToDisplay.length}</span> projects visible • 
+              <span>{projectsToDisplay.length}</span> projects visible •
               <span> {new Set(projectsToDisplay.map(p => p.region)).size}</span> regions
               {selectedProject && !showAllProjects && (
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
@@ -627,8 +633,8 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle>Project Details</CardTitle>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setCurrentSelectedProject(null)}
                 data-testid="button-close-details"
@@ -727,7 +733,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                   </div>
                 )}
               </div>
-              
+
               {/* Rating Section */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
@@ -745,22 +751,22 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                     </Button>
                   )}
                 </div>
-                
+
                 <ProjectRatingButtons projectId={currentSelectedProject.id} />
-                
+
                 {userLocation && (
                   <p className="text-xs text-muted-foreground mt-2 flex items-center">
                     <LocationIcon className="mr-1 h-3 w-3" />
                     Location captured for proximity verification
                   </p>
                 )}
-                
+
                 {!isAuthenticated && (
                   <p className="text-xs text-muted-foreground mt-2">
                     Please sign in to rate projects
                   </p>
                 )}
-                
+
                 {/* Show existing reactions count */}
                 {reactions.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-border">
@@ -781,7 +787,7 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Share on X Button */}
                 <div className="mt-4 pt-4 border-t border-border">
                   <Button
@@ -793,34 +799,34 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                         const region = currentSelectedProject.region.replace(/\s+/g, '');
                         const location = currentSelectedProject.location.replace(/\s+/g, '').replace(/,/g, '');
                         const cost = formatCurrency(parseFloat(currentSelectedProject.cost));
-                        
+
                         let tweetText = `📍 Infrastructure Project Alert! ${projectName} in ${currentSelectedProject.location} (${cost})`;
-                        
+
                         // Add reaction data if available
                         if (reactions.length > 0) {
                           const excellentCount = reactions.filter(r => r.rating === 'excellent').length;
                           const standardCount = reactions.filter(r => r.rating === 'standard').length;
                           const subStandardCount = reactions.filter(r => r.rating === 'sub-standard').length;
                           const ghostCount = reactions.filter(r => r.rating === 'ghost').length;
-                          
+
                           tweetText += ` | Community Ratings: ${reactions.length} total`;
                           if (excellentCount > 0) tweetText += ` - ${excellentCount} Excellent`;
                           if (standardCount > 0) tweetText += ` - ${standardCount} Standard`;
                           if (subStandardCount > 0) tweetText += ` - ${subStandardCount} Sub-standard`;
                           if (ghostCount > 0) tweetText += ` - ${ghostCount} Ghost Projects`;
                         }
-                        
+
                         // Add hashtags
                         tweetText += ` #${region} #${location} #FloodControlPH #DPWH #InfrastructurePH`;
-                        
+
                         // Add link to view data with query params for direct map navigation
                         const dashboardUrl = window.location.origin;
                         const projectParams = `?tab=map&project=${currentSelectedProject.id}&lat=${currentSelectedProject.latitude}&lng=${currentSelectedProject.longitude}`;
                         tweetText += ` | View project: ${dashboardUrl}${projectParams}`;
-                        
+
                         return encodeURIComponent(tweetText);
                       };
-                      
+
                       const tweetUrl = `https://x.com/intent/tweet?text=${generateTweetText()}`;
                       window.open(tweetUrl, '_blank');
                     }}

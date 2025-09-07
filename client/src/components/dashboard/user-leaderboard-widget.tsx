@@ -10,6 +10,16 @@ import { useUserLeaderboard, useUserReactions, LeaderboardUser } from '@/hooks/u
 import { Trophy, Medal, Award, Star, ThumbsUp, AlertTriangle, Ghost, MapPin, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Function to generate a random color based on username for anonymous avatar
+function getRandomColor(username: string) {
+  const hash = username.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
+  return colors[Math.abs(hash) % colors.length];
+}
+
 function getRatingIcon(rating: string) {
   switch (rating) {
     case 'excellent': return <Star className="h-3 w-3" fill="currentColor" />;
@@ -56,8 +66,10 @@ function UserReactionDetails({ user, trigger }: UserReactionDetailsProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarImage src={user.username ? undefined : user.avatar} alt={user.name} />
+              <AvatarFallback className={user.username ? getRandomColor(user.username) : ''}>
+                {(user.username || user.name).charAt(0).toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             {user.username || user.name}'s Reactions
           </DialogTitle>
@@ -65,7 +77,7 @@ function UserReactionDetails({ user, trigger }: UserReactionDetailsProps) {
             All reactions by {user.username || user.name}
           </DialogDescription>
         </DialogHeader>
-        
+
         <ScrollArea className="max-h-[60vh]">
           {isLoading ? (
             <div className="space-y-4">
@@ -97,7 +109,7 @@ function UserReactionDetails({ user, trigger }: UserReactionDetailsProps) {
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="space-y-1">
                         <h4 className="font-semibold text-sm line-clamp-1">{reaction.project.projectName}</h4>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -118,7 +130,7 @@ function UserReactionDetails({ user, trigger }: UserReactionDetailsProps) {
                           </span>
                         </div>
                       </div>
-                      
+
                       {reaction.comment && (
                         <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                           "{reaction.comment}"
@@ -197,8 +209,10 @@ export function UserLeaderboardWidget() {
                         {getRankIcon(index)}
                       </div>
                       <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={entry.user.avatar} alt={entry.user.name} />
-                        <AvatarFallback>{entry.user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                        <AvatarImage src={entry.user.username ? undefined : entry.user.avatar} alt={entry.user.name} />
+                        <AvatarFallback className={entry.user.username ? getRandomColor(entry.user.username) : ''}>
+                          {(entry.user.username || entry.user.name).charAt(0).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 text-left min-w-0">
                         <div className="font-medium text-sm truncate">

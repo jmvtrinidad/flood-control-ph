@@ -1,6 +1,6 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import type { Express } from 'express';
+import { createServer, type Server } from 'http';
+import { storage } from './storage';
 import {
   insertProjectSchema,
   filtersSchema,
@@ -9,19 +9,19 @@ import {
   insertUserLocationSchema,
   projects,
   settings,
-} from "@shared/schema";
+} from '@shared/schema';
 import {
   setupSession,
   setupPassport,
   setupAuthRoutes,
   requireAuth,
   optionalAuth,
-} from "./auth";
-import { db } from "./db";
-import { reactions, userLocations, users } from "@shared/schema";
-import { eq, and, or, desc, sql } from "drizzle-orm";
-import multer from "multer";
-import { z } from "zod";
+} from './auth';
+import { db } from './db';
+import { reactions, userLocations, users } from '@shared/schema';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
+import multer from 'multer';
+import { z } from 'zod';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -34,159 +34,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupPassport(app);
   await setupAuthRoutes(app);
   // Get projects with optional filters
-  app.get("/api/projects", async (req, res) => {
+  app.get('/api/projects', async (req, res) => {
     try {
       const filters = filtersSchema.parse(req.query);
       const projects = await storage.getProjects(filters);
       res.json(projects);
     } catch (error) {
-      res.status(400).json({ error: "Invalid filters", details: error });
+      res.status(400).json({ error: 'Invalid filters', details: error });
     }
   });
 
   // Get all unique contractors from the database
-  app.get("/api/contractors", async (req, res) => {
+  app.get('/api/contractors', async (req, res) => {
     try {
       const contractors = await db
         .selectDistinct({ contractor: projects.contractor })
         .from(projects)
-        .where(sql`${projects.contractor} IS NOT NULL AND ${projects.contractor} != ''`)
+        .where(
+          sql`${projects.contractor} IS NOT NULL AND ${projects.contractor} != ''`
+        )
         .orderBy(projects.contractor);
-      
-      res.json(contractors.map(row => row.contractor));
+
+      // Split contractor names by "/" and create unique list
+      const uniqueContractors = new Set<string>();
+      contractors.forEach((row) => {
+        if (row.contractor) {
+          // Split by "/" and trim whitespace
+          const splitContractors = row.contractor
+            .split('/')
+            .map((c) => c.trim())
+            .filter((c) => c.length > 0);
+          splitContractors.forEach((contractor) =>
+            uniqueContractors.add(contractor)
+          );
+        }
+      });
+
+      // Convert to sorted array
+      const sortedContractors = Array.from(uniqueContractors).sort();
+
+      res.json(sortedContractors);
     } catch (error) {
       console.error('Error fetching contractors:', error);
-      res.status(500).json({ error: "Failed to fetch contractors" });
+      res.status(500).json({ error: 'Failed to fetch contractors' });
     }
   });
 
   // Get all unique fiscal years from the database
-  app.get("/api/fiscal-years", async (req, res) => {
+  app.get('/api/fiscal-years', async (req, res) => {
     try {
       const fiscalYears = await db
         .selectDistinct({ fy: projects.fy })
         .from(projects)
         .where(sql`${projects.fy} IS NOT NULL AND ${projects.fy} != ''`)
         .orderBy(sql`${projects.fy} DESC`);
-      
-      res.json(fiscalYears.map(row => row.fy));
+
+      res.json(fiscalYears.map((row) => row.fy));
     } catch (error) {
       console.error('Error fetching fiscal years:', error);
-      res.status(500).json({ error: "Failed to fetch fiscal years" });
+      res.status(500).json({ error: 'Failed to fetch fiscal years' });
     }
   });
 
-  // Get projects with reaction summaries grouped by contractor
-  app.get("/api/projects/by-reactions", async (req, res) => {
+  // Get projects with reaction summaries grouped by contractor (optimized)
+  app.get('/api/projects/by-reactions', async (req, res) => {
     try {
-      // Get all projects with their reaction summaries
-      const projectsWithReactions = await db
+      const { sortBy = 'highest-rated' } = req.query;
+
+      // Optimized query: Only fetch projects that have reactions, calculate scores at DB level
+      const contractorData = await db
         .select({
-          id: projects.id,
+          contractor: projects.contractor,
+          projectId: projects.id,
           projectname: projects.projectname,
           location: projects.location,
           region: projects.region,
-          contractor: projects.contractor,
           cost: projects.cost,
           status: projects.status,
-          reactionId: reactions.id,
-          rating: reactions.rating,
+          created_at: projects.created_at,
+          // Aggregate reaction data per project
+          reactionCount: sql<number>`count(${reactions.id})`.as('reaction_count'),
+          averageScore: sql<number>`
+            avg(case
+              when ${reactions.rating} = 'excellent' then 4
+              when ${reactions.rating} = 'standard' then 3
+              when ${reactions.rating} = 'sub-standard' then 2
+              when ${reactions.rating} = 'ghost' then 1
+              else 0
+            end)
+          `.as('average_score'),
+          totalRatings: sql<number>`count(${reactions.id})`.as('total_ratings'),
+          ghostCount: sql<number>`
+            sum(case when ${reactions.rating} = 'ghost' then 1 else 0 end)
+          `.as('ghost_count'),
+          latestRating: sql<number>`max(extract(epoch from ${reactions.created_at}))`.as('latest_rating'),
+          // Controversy score calculation (variance of ratings)
+          controversyScore: sql<number>`
+            case
+              when count(${reactions.id}) >= 2 then
+                variance(case
+                  when ${reactions.rating} = 'excellent' then 4
+                  when ${reactions.rating} = 'standard' then 3
+                  when ${reactions.rating} = 'sub-standard' then 2
+                  when ${reactions.rating} = 'ghost' then 1
+                  else 0
+                end)
+              else 0
+            end
+          `.as('controversy_score'),
         })
         .from(projects)
-        .leftJoin(reactions, eq(projects.id, reactions.projectId));
+        .innerJoin(reactions, eq(projects.id, reactions.projectId))
+        .where(sql`${projects.contractor} IS NOT NULL AND ${projects.contractor} != ''`)
+        .groupBy(projects.contractor, projects.id, projects.projectname, projects.location, projects.region, projects.cost, projects.status, projects.created_at)
+        .orderBy(projects.contractor, sql`average_score desc`);
 
-      // Group by project and calculate reaction scores
-      const projectMap = new Map();
-      
-      projectsWithReactions.forEach(row => {
-        if (!projectMap.has(row.id)) {
-          projectMap.set(row.id, {
-            id: row.id,
-            projectname: row.projectname,
-            location: row.location,
-            region: row.region,
+      // Group by contractor in memory (much smaller dataset now)
+      const contractorGroups: Record<string, any> = {};
+
+      contractorData.forEach((row) => {
+        if (!contractorGroups[row.contractor]) {
+          contractorGroups[row.contractor] = {
             contractor: row.contractor,
-            cost: row.cost,
-            status: row.status,
-            reactions: [],
-            reactionScore: 0,
-            reactionCount: 0
-          });
+            projects: [],
+            bestScore: 0,
+            totalRatings: 0,
+            ghostCount: 0,
+            latestRating: 0,
+            controversyScore: 0,
+          };
         }
-        
-        if (row.reactionId && row.rating) {
-          const project = projectMap.get(row.id);
-          project.reactions.push(row.rating);
-          
-          // Calculate reaction score (excellent=4, standard=3, sub-standard=2, ghost=1)
-          const scores: Record<string, number> = { 'excellent': 4, 'standard': 3, 'sub-standard': 2, 'ghost': 1 };
-          project.reactionScore += scores[row.rating as string] || 0;
-          project.reactionCount++;
-        }
+
+        const contractor = contractorGroups[row.contractor];
+
+        // Add project to contractor's projects
+        contractor.projects.push({
+          id: row.projectId,
+          projectname: row.projectname,
+          location: row.location,
+          region: row.region,
+          contractor: row.contractor,
+          cost: row.cost,
+          status: row.status,
+          created_at: row.created_at,
+          reactions: [], // We'll populate this if needed, but for now we don't need individual reactions
+          reactionScore: row.averageScore * row.reactionCount,
+          reactionCount: row.reactionCount,
+          averageReactionScore: row.averageScore,
+        });
+
+        // Update contractor aggregates
+        contractor.bestScore = Math.max(contractor.bestScore, row.averageScore);
+        contractor.totalRatings += row.totalRatings;
+        contractor.ghostCount += row.ghostCount;
+        contractor.latestRating = Math.max(contractor.latestRating, row.latestRating || 0);
+        contractor.controversyScore += row.controversyScore;
       });
 
-      // Convert to array and calculate average scores
-      const projectsArray = Array.from(projectMap.values()).map(project => ({
-        ...project,
-        averageReactionScore: project.reactionCount > 0 ? project.reactionScore / project.reactionCount : 0
-      }));
+      // Convert to array and apply sorting
+      let sortedContractors = Object.values(contractorGroups);
 
-      // Group by contractor and sort by reaction scores
-      const contractorGroups: Record<string, any[]> = {};
-      projectsArray.forEach((project: any) => {
-        if (!contractorGroups[project.contractor]) {
-          contractorGroups[project.contractor] = [];
-        }
-        contractorGroups[project.contractor].push(project);
-      });
-
-      // Sort projects within each contractor group by reaction score
-      Object.keys(contractorGroups).forEach(contractor => {
-        contractorGroups[contractor].sort((a: any, b: any) => b.averageReactionScore - a.averageReactionScore);
-      });
-
-      // Sort contractors by their best project's reaction score
-      const sortedContractors = Object.keys(contractorGroups)
-        .map(contractor => ({
-          contractor,
-          projects: contractorGroups[contractor],
-          bestScore: contractorGroups[contractor][0]?.averageReactionScore || 0
-        }))
-        .sort((a, b) => b.bestScore - a.bestScore);
+      // Apply sorting based on sortBy parameter
+      switch (sortBy) {
+        case 'highest-rated':
+          sortedContractors.sort((a: any, b: any) => b.bestScore - a.bestScore);
+          break;
+        case 'most-rated':
+          sortedContractors.sort((a: any, b: any) => b.totalRatings - a.totalRatings);
+          break;
+        case 'highest-ghost':
+          sortedContractors.sort((a: any, b: any) => b.ghostCount - a.ghostCount);
+          break;
+        case 'most-controversial':
+          sortedContractors.sort((a: any, b: any) => b.controversyScore - a.controversyScore);
+          break;
+        case 'recent-rated':
+          sortedContractors.sort((a: any, b: any) => b.latestRating - a.latestRating);
+          break;
+        default:
+          sortedContractors.sort((a: any, b: any) => b.bestScore - a.bestScore);
+      }
 
       res.json(sortedContractors);
     } catch (error) {
       console.error('Error fetching projects by reactions:', error);
-      res.status(500).json({ error: "Failed to fetch projects by reactions" });
+      res.status(500).json({ error: 'Failed to fetch projects by reactions' });
     }
   });
 
   // Get single project
-  app.get("/api/projects/:id", async (req, res) => {
+  app.get('/api/projects/:id', async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
-        return res.status(404).json({ error: "Project not found" });
+        return res.status(404).json({ error: 'Project not found' });
       }
       res.json(project);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch project" });
+      res.status(500).json({ error: 'Failed to fetch project' });
     }
   });
 
   // Create single project
-  app.post("/api/projects", async (req, res) => {
+  app.post('/api/projects', async (req, res) => {
     try {
       const projectData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(projectData);
       res.status(201).json(project);
     } catch (error) {
-      res.status(400).json({ error: "Invalid project data", details: error });
+      res.status(400).json({ error: 'Invalid project data', details: error });
     }
   });
 
   // Bulk create projects
-  app.post("/api/projects/bulk", async (req, res) => {
+  app.post('/api/projects/bulk', async (req, res) => {
     try {
       const projectsData = z.array(insertProjectSchema).parse(req.body);
       const projects = await storage.createProjects(projectsData);
@@ -195,24 +256,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projects,
       });
     } catch (error) {
-      res.status(400).json({ error: "Invalid projects data", details: error });
+      res.status(400).json({ error: 'Invalid projects data', details: error });
     }
   });
 
   // Upload JSON file
-  app.post("/api/projects/upload", upload.single("file"), async (req, res) => {
+  app.post('/api/projects/upload', upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+        return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      const fileContent = req.file.buffer.toString("utf-8");
+      const fileContent = req.file.buffer.toString('utf-8');
       let jsonData;
 
       try {
         jsonData = JSON.parse(fileContent);
       } catch (parseError) {
-        return res.status(400).json({ error: "Invalid JSON file" });
+        return res.status(400).json({ error: 'Invalid JSON file' });
       }
 
       // Ensure it's an array
@@ -227,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (project) =>
             project.latitude !== null &&
             project.longitude !== null &&
-            project.cost !== null,
+            project.cost !== null
         )
         .map((project) => ({
           ...project,
@@ -241,31 +302,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedUploadProjects.length - insertProjects.length;
 
       res.json({
-        message: `Successfully uploaded ${projects.length} projects${skippedCount > 0 ? ` (${skippedCount} projects skipped due to missing coordinates or cost)` : ""}`,
+        message: `Successfully uploaded ${projects.length} projects${
+          skippedCount > 0
+            ? ` (${skippedCount} projects skipped due to missing coordinates or cost)`
+            : ''
+        }`,
         projects,
       });
     } catch (error) {
-      console.error("Upload error:", error);
-      res
-        .status(400)
-        .json({
-          error: "Failed to process uploaded file",
-          details: error instanceof Error ? error.message : error,
-        });
+      console.error('Upload error:', error);
+      res.status(400).json({
+        error: 'Failed to process uploaded file',
+        details: error instanceof Error ? error.message : error,
+      });
     }
   });
 
   // Load data from external URL
-  app.post("/api/projects/load-url", async (req, res) => {
+  app.post('/api/projects/load-url', async (req, res) => {
     try {
       const { url } = req.body;
       if (!url) {
-        return res.status(400).json({ error: "URL is required" });
+        return res.status(400).json({ error: 'URL is required' });
       }
 
       const response = await fetch(url);
       if (!response.ok) {
-        return res.status(400).json({ error: "Failed to fetch data from URL" });
+        return res.status(400).json({ error: 'Failed to fetch data from URL' });
       }
 
       const jsonData = await response.json();
@@ -280,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (project) =>
             project.latitude !== null &&
             project.longitude !== null &&
-            project.cost !== null,
+            project.cost !== null
         )
         .map((project) => ({
           ...project,
@@ -294,82 +357,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedUploadProjects.length - insertProjects.length;
 
       res.json({
-        message: `Successfully loaded ${projects.length} projects from URL${skippedCount > 0 ? ` (${skippedCount} projects skipped due to missing coordinates or cost)` : ""}`,
+        message: `Successfully loaded ${projects.length} projects from URL${
+          skippedCount > 0
+            ? ` (${skippedCount} projects skipped due to missing coordinates or cost)`
+            : ''
+        }`,
         projects,
       });
     } catch (error) {
       res
         .status(400)
-        .json({ error: "Failed to load data from URL", details: error });
+        .json({ error: 'Failed to load data from URL', details: error });
     }
   });
 
   // Update project
-  app.put("/api/projects/:id", async (req, res) => {
+  app.put('/api/projects/:id', async (req, res) => {
     try {
       const updateData = insertProjectSchema.partial().parse(req.body);
       const project = await storage.updateProject(req.params.id, updateData);
       if (!project) {
-        return res.status(404).json({ error: "Project not found" });
+        return res.status(404).json({ error: 'Project not found' });
       }
       res.json(project);
     } catch (error) {
-      res.status(400).json({ error: "Invalid update data", details: error });
+      res.status(400).json({ error: 'Invalid update data', details: error });
     }
   });
 
   // Delete project
-  app.delete("/api/projects/:id", async (req, res) => {
+  app.delete('/api/projects/:id', async (req, res) => {
     try {
       const success = await storage.deleteProject(req.params.id);
       if (!success) {
-        return res.status(404).json({ error: "Project not found" });
+        return res.status(404).json({ error: 'Project not found' });
       }
-      res.json({ message: "Project deleted successfully" });
+      res.json({ message: 'Project deleted successfully' });
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete project" });
+      res.status(500).json({ error: 'Failed to delete project' });
     }
   });
 
   // Clear all projects
-  app.delete("/api/projects", async (req, res) => {
+  app.delete('/api/projects', async (req, res) => {
     try {
       await storage.clearProjects();
-      res.json({ message: "All projects cleared successfully" });
+      res.json({ message: 'All projects cleared successfully' });
     } catch (error) {
-      res.status(500).json({ error: "Failed to clear projects" });
+      res.status(500).json({ error: 'Failed to clear projects' });
     }
   });
 
   // Get analytics with optional filters
-  app.get("/api/analytics", async (req, res) => {
+  app.get('/api/analytics', async (req, res) => {
     try {
       const analytics = await storage.getAnalytics(req.query);
       res.json(analytics);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch analytics" });
+      res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   });
 
   // Get authentication settings
-  app.get("/api/auth/settings", async (req, res) => {
+  app.get('/api/auth/settings', async (req, res) => {
     try {
       // Initialize default settings if they don't exist
       const defaultSettings = [
         {
-          key: "facebook_login_enabled",
+          key: 'facebook_login_enabled',
           value: true,
-          description: "Enable Facebook OAuth authentication",
+          description: 'Enable Facebook OAuth authentication',
         },
         {
-          key: "google_login_enabled",
+          key: 'google_login_enabled',
           value: true,
-          description: "Enable Google OAuth authentication",
+          description: 'Enable Google OAuth authentication',
         },
         {
-          key: "twitter_login_enabled",
+          key: 'twitter_login_enabled',
           value: true,
-          description: "Enable X (formerly Twitter) OAuth authentication",
+          description: 'Enable X (formerly Twitter) OAuth authentication',
         },
       ];
 
@@ -383,26 +450,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(settings)
         .where(
           or(
-            eq(settings.key, "facebook_login_enabled"),
-            eq(settings.key, "google_login_enabled"),
-            eq(settings.key, "twitter_login_enabled"),
-          ),
+            eq(settings.key, 'facebook_login_enabled'),
+            eq(settings.key, 'google_login_enabled'),
+            eq(settings.key, 'twitter_login_enabled')
+          )
         );
 
-      const settingsObj = authSettings.reduce(
-        (acc, setting) => {
-          acc[setting.key] = setting.value;
-          return acc;
-        },
-        {} as Record<string, any>,
-      );
+      const settingsObj = authSettings.reduce((acc, setting) => {
+        acc[setting.key] = setting.value;
+        return acc;
+      }, {} as Record<string, any>);
 
       res.json(settingsObj);
     } catch (error) {
-      console.error("Error fetching auth settings:", error);
+      console.error('Error fetching auth settings:', error);
       res
         .status(500)
-        .json({ error: "Failed to fetch authentication settings" });
+        .json({ error: 'Failed to fetch authentication settings' });
     }
   });
 
@@ -410,7 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get reactions for a project
 
-  app.get("/api/projects/:projectId/reactions", async (req, res) => {
+  app.get('/api/projects/:projectId/reactions', async (req, res) => {
     try {
       const projectReactions = await db
         .select({
@@ -432,13 +496,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(projectReactions);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch reactions" });
+      res.status(500).json({ error: 'Failed to fetch reactions' });
     }
   });
 
   // Add or update reaction (requires authentication)
   app.post(
-    "/api/projects/:projectId/reactions",
+    '/api/projects/:projectId/reactions',
     requireAuth,
     async (req, res) => {
       try {
@@ -454,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId,
                 latitude: userLocation.latitude.toString(),
                 longitude: userLocation.longitude.toString(),
-                address: "Current Location",
+                address: 'Current Location',
               })
               .onConflictDoUpdate({
                 target: userLocations.userId,
@@ -473,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               })
               .where(eq(users.id, userId));
           } catch (locationError) {
-            console.error("Failed to update user location:", locationError);
+            console.error('Failed to update user location:', locationError);
           }
         }
 
@@ -486,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const isAdminUser =
           currentUser.length > 0 &&
-          currentUser[0].email === "janmvtrinidad@gmail.com";
+          currentUser[0].email === 'janmvtrinidad@gmail.com';
 
         // Calculate proximity verification if both project and user locations are available
         let isProximityVerified = false;
@@ -532,7 +596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isProximityVerified = isAdminUser || distance <= 0.5;
             }
           } catch (proximityError) {
-            console.error("Failed to calculate proximity:", proximityError);
+            console.error('Failed to calculate proximity:', proximityError);
           }
         } else if (isAdminUser) {
           // Admin user can rate without location
@@ -546,8 +610,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(
             and(
               eq(reactions.userId, userId),
-              eq(reactions.projectId, req.params.projectId),
-            ),
+              eq(reactions.projectId, req.params.projectId)
+            )
           )
           .limit(1);
 
@@ -586,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           !isAdminUser
         ) {
           return res.status(400).json({
-            error: "Proximity verification failed",
+            error: 'Proximity verification failed',
             details: {
               message: `You must be within ${proximityDetails.required}m of the project to rate it`,
               distance: Math.round(proximityDetails.distance),
@@ -605,19 +669,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAdminBypass: isAdminUser && !proximityDetails,
         });
       } catch (error) {
-        console.error("Reaction save error:", error);
-        res
-          .status(500)
-          .json({
-            error:
-              "Failed to save reaction" + (error as any)?.message?.toString(),
-          });
+        console.error('Reaction save error:', error);
+        res.status(500).json({
+          error:
+            'Failed to save reaction' + (error as any)?.message?.toString(),
+        });
       }
-    },
+    }
   );
 
   // Update user location for proximity verification
-  app.post("/api/user/location", requireAuth, async (req, res) => {
+  app.post('/api/user/location', requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
       const { latitude, longitude, address } = req.body;
@@ -644,13 +706,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(userLocation[0]);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update location" });
+      res.status(500).json({ error: 'Failed to update location' });
     }
   });
 
   // Calculate proximity and verify reactions
   app.post(
-    "/api/reactions/:reactionId/verify-proximity",
+    '/api/reactions/:reactionId/verify-proximity',
     requireAuth,
     async (req, res) => {
       try {
@@ -662,12 +724,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .select()
           .from(reactions)
           .where(
-            and(eq(reactions.id, reactionId), eq(reactions.userId, userId)),
+            and(eq(reactions.id, reactionId), eq(reactions.userId, userId))
           )
           .limit(1);
 
         if (reactionData.length === 0) {
-          return res.status(404).json({ error: "Reaction not found" });
+          return res.status(404).json({ error: 'Reaction not found' });
         }
 
         // Get project details
@@ -678,7 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .limit(1);
 
         if (projectData.length === 0) {
-          return res.status(404).json({ error: "Project not found" });
+          return res.status(404).json({ error: 'Project not found' });
         }
 
         // Get user's latest location
@@ -690,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .limit(1);
 
         if (userLocation.length === 0) {
-          return res.status(400).json({ error: "User location not available" });
+          return res.status(400).json({ error: 'User location not available' });
         }
 
         // Calculate distance (simplified - you might want to use a more accurate calculation)
@@ -700,7 +762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userLng = parseFloat(userLocation[0].longitude);
 
         const distance = Math.sqrt(
-          Math.pow(projectLat - userLat, 2) + Math.pow(projectLng - userLng, 2),
+          Math.pow(projectLat - userLat, 2) + Math.pow(projectLng - userLng, 2)
         );
 
         // Consider verified if within ~0.005 degrees (roughly 500 meters)
@@ -719,36 +781,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reaction: updatedReaction[0],
         });
       } catch (error) {
-        res.status(500).json({ error: "Failed to verify proximity" });
+        res.status(500).json({ error: 'Failed to verify proximity' });
       }
-    },
+    }
   );
 
   // Export projects as CSV
-  app.get("/api/projects/export/csv", async (req, res) => {
+  app.get('/api/projects/export/csv', async (req, res) => {
     try {
       const filters = filtersSchema.parse(req.query);
       const projects = await storage.getProjects(filters);
 
       // Generate CSV
       const headers = [
-        "ID",
-        "Project Name",
-        "Location",
-        "Latitude",
-        "Longitude",
-        "Contractor",
-        "Cost",
-        "Start Date",
-        "Completion Date",
-        "Fiscal Year",
-        "Region",
-        "Status",
-        "Other Details",
+        'ID',
+        'Project Name',
+        'Location',
+        'Latitude',
+        'Longitude',
+        'Contractor',
+        'Cost',
+        'Start Date',
+        'Completion Date',
+        'Fiscal Year',
+        'Region',
+        'Status',
+        'Other Details',
       ];
 
       const csvRows = [
-        headers.join(","),
+        headers.join(','),
         ...projects.map((p) =>
           [
             p.id,
@@ -758,29 +820,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             p.longitude,
             `"${p.contractor.replace(/"/g, '""')}"`,
             p.cost,
-            p.start_date || "",
-            p.completion_date || "",
+            p.start_date || '',
+            p.completion_date || '',
             p.fy,
             `"${p.region.replace(/"/g, '""')}"`,
-            p.status || "",
-            p.other_details ? `"${p.other_details.replace(/"/g, '""')}"` : "",
-          ].join(","),
+            p.status || '',
+            p.other_details ? `"${p.other_details.replace(/"/g, '""')}"` : '',
+          ].join(',')
         ),
       ];
 
-      res.setHeader("Content-Type", "text/csv");
+      res.setHeader('Content-Type', 'text/csv');
       res.setHeader(
-        "Content-Disposition",
-        'attachment; filename="projects.csv"',
+        'Content-Disposition',
+        'attachment; filename="projects.csv"'
       );
-      res.send(csvRows.join("\n"));
+      res.send(csvRows.join('\n'));
     } catch (error) {
-      res.status(500).json({ error: "Failed to export CSV" });
+      res.status(500).json({ error: 'Failed to export CSV' });
     }
   });
 
   // Get user leaderboard by reaction count
-  app.get("/api/users/leaderboard", async (req, res) => {
+  app.get('/api/users/leaderboard', async (req, res) => {
     try {
       const userLeaderboard = await db
         .select({
@@ -790,7 +852,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             avatar: users.avatar,
             provider: users.provider,
           },
-          reactionCount: sql<number>`count(${reactions.id})`.as('reaction_count'),
+          reactionCount: sql<number>`count(${reactions.id})`.as(
+            'reaction_count'
+          ),
         })
         .from(users)
         .leftJoin(reactions, eq(users.id, reactions.userId))
@@ -802,12 +866,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userLeaderboard);
     } catch (error) {
       console.error('Error fetching user leaderboard:', error);
-      res.status(500).json({ error: "Failed to fetch user leaderboard" });
+      res.status(500).json({ error: 'Failed to fetch user leaderboard' });
     }
   });
 
   // Get detailed reactions for a specific user
-  app.get("/api/users/:userId/reactions", async (req, res) => {
+  app.get('/api/users/:userId/reactions', async (req, res) => {
     try {
       const userId = req.params.userId;
       const userReactions = await db
@@ -834,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userReactions);
     } catch (error) {
       console.error('Error fetching user reactions:', error);
-      res.status(500).json({ error: "Failed to fetch user reactions" });
+      res.status(500).json({ error: 'Failed to fetch user reactions' });
     }
   });
 

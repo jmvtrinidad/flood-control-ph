@@ -1,14 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building, MapPin, Star, TrendingUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building, MapPin, Star, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { useProjectsByReactions } from '@/hooks/use-projects-by-reactions';
 import { formatCurrency } from '@/lib/analytics';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useState } from 'react';
 
 export function ProjectsByReactionsWidget() {
-  const { data: contractorGroups, isLoading } = useProjectsByReactions();
   const isMobile = useIsMobile();
+  const [sortBy, setSortBy] = useState('highest-rated');
+  const { data: contractorGroups, isLoading } = useProjectsByReactions(sortBy);
 
   const getRatingColor = (score: number) => {
     if (score >= 3.5) return 'bg-green-100 text-green-800';
@@ -66,16 +69,33 @@ export function ProjectsByReactionsWidget() {
     );
   }
 
-  // Show top 5 contractors
+  // Show top 5 contractors (already sorted by server)
   const topContractors = contractorGroups.slice(0, 5);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building className="h-5 w-5" />
-          Top Projects by User Reactions
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Building className="h-5 w-5" />
+            Top Projects by User Reactions
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-40" data-testid="select-sort-by">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="highest-rated">Highest Rated</SelectItem>
+                <SelectItem value="most-rated">Most Rated</SelectItem>
+                <SelectItem value="highest-ghost">Most Ghost Projects</SelectItem>
+                <SelectItem value="most-controversial">Most Controversial</SelectItem>
+                <SelectItem value="recent-rated">Recently Rated</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -101,8 +121,8 @@ export function ProjectsByReactionsWidget() {
               {/* Show top 3 projects for each contractor */}
               <div className="space-y-2 pl-4">
                 {contractorGroup.projects.slice(0, 3).map((project) => (
-                  <div 
-                    key={project.id} 
+                  <div
+                    key={project.id}
                     className="flex items-start justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
@@ -141,7 +161,7 @@ export function ProjectsByReactionsWidget() {
                     </div>
                   </div>
                 ))}
-                
+
                 {contractorGroup.projects.length > 3 && (
                   <p className="text-xs text-muted-foreground pl-3">
                     +{contractorGroup.projects.length - 3} more project{contractorGroup.projects.length - 3 !== 1 ? 's' : ''}
@@ -150,7 +170,7 @@ export function ProjectsByReactionsWidget() {
               </div>
             </div>
           ))}
-          
+
           {contractorGroups.length > 5 && (
             <div className="text-center pt-2 border-t">
               <p className="text-xs text-muted-foreground">

@@ -6,7 +6,7 @@ import { Building, DollarSign, Calculator, MapPin, TrendingUp, TrendingDown, Arr
 import { useAnalytics } from '@/hooks/use-projects';
 import { useProjectsByReactions } from '@/hooks/use-projects-by-reactions';
 import { formatCurrency, formatNumber } from '@/lib/analytics';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
 import { ContractorList } from './contractor-list';
 import { ProjectsByReactionsWidget } from './projects-by-reactions-widget';
 import { UserLeaderboardWidget } from './user-leaderboard-widget';
@@ -19,25 +19,32 @@ interface OverviewTabProps {
   filters?: ProjectFilters;
   onLocationClick?: (location: string) => void;
   onRegionClick?: (region: string) => void;
+  onContractorSelect?: (contractor: string) => void;
 }
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-export function OverviewTab({ projects, isLoading, filters, onLocationClick, onRegionClick }: OverviewTabProps) {
+export function OverviewTab({ projects, isLoading, filters, onLocationClick, onRegionClick, onContractorSelect }: OverviewTabProps) {
   const [useFullCost, setUseFullCost] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const isMobile = useIsMobile();
-  
+
   const analyticsFilters = {
+    ...filters, // Include global filters (including search)
+    useFullCostForJointVentures: useFullCost
+  };
+
+  const locationAnalyticsFilters = {
     ...filters, // Include global filters (including search)
     useFullCostForJointVentures: useFullCost,
     ...(selectedRegion && { region: selectedRegion })
   };
-  
-  const { data: analytics, isLoading: analyticsLoading } = useAnalytics(analyticsFilters);
-  const { data: projectsByReactions, isLoading: reactionsLoading } = useProjectsByReactions();
 
-  if (isLoading || analyticsLoading || reactionsLoading) {
+  const { data: analytics, isLoading: analyticsLoading } = useAnalytics(analyticsFilters);
+  const { data: locationAnalytics, isLoading: locationAnalyticsLoading } = useAnalytics(locationAnalyticsFilters);
+  const { data: projectsByReactions, isLoading: reactionsLoading } = useProjectsByReactions(undefined, analyticsFilters);
+
+  if (isLoading || analyticsLoading || locationAnalyticsLoading || reactionsLoading) {
     return (
       <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`}>
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6`}>
@@ -72,20 +79,21 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
   const avgCost = analytics?.avgCost || 0;
   const activeRegions = analytics?.activeRegions || 0;
 
-  // Prepare chart data - show locations if region is selected, otherwise show regions
-  const chartData = selectedRegion 
-    ? (analytics?.projectsByLocation?.slice(0, 10).map(item => ({
-        name: item.location.length > 15 ? item.location.substring(0, 15) + '...' : item.location,
-        fullName: item.location,
-        cost: item.cost / 1e9, // Convert to billions
-        count: item.count
-      })) || [])
-    : (analytics?.projectsByRegion?.slice(0, 10).map(item => ({
-        name: item.region.length > 15 ? item.region.substring(0, 15) + '...' : item.region,
-        fullName: item.region,
-        cost: item.cost / 1e9, // Convert to billions
-        count: item.count
-      })) || []);
+  // Prepare chart data - always show regions
+  const regionChartData = analytics?.projectsByRegion?.slice(0, 10).map(item => ({
+    name: item.region.length > 15 ? item.region.substring(0, 15) + '...' : item.region,
+    fullName: item.region,
+    cost: item.cost / 1e9, // Convert to billions
+    count: item.count
+  })) || [];
+
+  // Prepare location chart data for selected region
+  const locationChartData = locationAnalytics?.projectsByLocation?.slice(0, 10).map(item => ({
+    name: item.location.length > 15 ? item.location.substring(0, 15) + '...' : item.location,
+    fullName: item.location,
+    cost: item.cost / 1e9, // Convert to billions
+    count: item.count
+  })) || [];
 
   const contractorData = analytics?.projectsByContractor?.slice(0, 8).map((item, index) => ({
     contractor: item.contractor.length > 20 ? item.contractor.substring(0, 20) + '...' : item.contractor,
@@ -100,16 +108,15 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
   })) || [];
 
   // Recent projects with ratings (showing first 3)
-  const projectsWithRatings = projectsByReactions ? 
+  const projectsWithRatings = projectsByReactions ?
     projectsByReactions.flatMap(group => group.projects).slice(0, 3) : [];
 
-  // Convert contractor groups to contractor data format for ContractorList
-  const contractorsWithRatings = projectsByReactions ? 
-    projectsByReactions.map(group => ({
-      contractor: group.contractor,
-      count: group.projects.length,
-      cost: group.projects.reduce((sum, project) => sum + parseFloat(project.cost), 0)
-    })) : [];
+  // Use analytics data for contractors (filtered and not dependent on reactions)
+  const contractorsData = analytics?.projectsByContractor?.map(item => ({
+    contractor: item.contractor,
+    count: item.count,
+    cost: item.cost
+  })) || [];
 
   return (
     <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 md:space-y-6`} data-testid="overview-tab">
@@ -185,67 +192,46 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
       </div>
 
       {/* Charts Grid */}
-      <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-2 gap-6'}`}>
+      <div className={`grid grid-cols-1 ${isMobile ? 'gap-4' : 'lg:grid-cols-3 gap-6'}`}>
         {/* Cost by Region Chart */}
         <Card data-testid="chart-cost-by-region">
           <CardHeader className={isMobile ? 'pb-3' : ''}>
             <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center justify-between'}`}>
-              <CardTitle>
-                {selectedRegion ? `Investment by Location in ${selectedRegion}` : 'Investment by Region'}
-              </CardTitle>
-              <div className={`flex items-center ${isMobile ? 'justify-between w-full' : 'space-x-2'}`}>
-                {selectedRegion && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedRegion(null)}
-                    data-testid="back-to-regions"
-                    className={isMobile ? 'text-xs px-2' : ''}
-                  >
-                    <ArrowRight className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} rotate-180 mr-1`} />
-                    {isMobile ? 'Back' : 'Back to Regions'}
-                  </Button>
-                )}
-                <div className="flex items-center space-x-1">
-                  <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
-                    <Download className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                  </Button>
-                  <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
-                    <Expand className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                  </Button>
-                </div>
+              <CardTitle>Investment by Region</CardTitle>
+              <div className="flex items-center space-x-1">
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Download className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Expand className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className={isMobile ? 'h-48' : 'h-64'}>
-              {chartData.length > 0 ? (
+              {regionChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} onClick={(data, index) => {
+                  <BarChart data={regionChartData} onClick={(data, index) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const clickedItem = data.activePayload[0].payload;
-                      if (!selectedRegion) {
-                        // Click on region - show locations and update sidebar filter
-                        setSelectedRegion(clickedItem.fullName);
-                        onRegionClick?.(clickedItem.fullName);
-                      } else {
-                        // Click on location - update sidebar filter and redirect to data table
-                        onLocationClick?.(clickedItem.fullName);
-                      }
+                      // Click on region - set selected region to show locations
+                      setSelectedRegion(clickedItem.fullName);
+                      onRegionClick?.(clickedItem.fullName);
                     }
                   }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" fontSize={isMobile ? 10 : 12} />
                     <YAxis fontSize={isMobile ? 10 : 12} />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number, name: string) => [
                         `₱${value.toFixed(1)}B`,
                         name === 'cost' ? 'Investment' : 'Projects'
                       ]}
                     />
-                    <Bar 
-                      dataKey="cost" 
-                      fill="hsl(var(--primary))" 
+                    <Bar
+                      dataKey="cost"
+                      fill="hsl(var(--primary))"
                       cursor="pointer"
                     />
                   </BarChart>
@@ -262,68 +248,142 @@ export function OverviewTab({ projects, isLoading, filters, onLocationClick, onR
           </CardContent>
         </Card>
 
-      </div>
-
-      {/* Recent Projects and Top Contractors */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card data-testid="recent-projects">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Projects with Ratings</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-all">
-                View All <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
+        {/* Investment by Location Chart */}
+        <Card data-testid="chart-cost-by-location">
+          <CardHeader className={isMobile ? 'pb-3' : ''}>
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center justify-between'}`}>
+              <CardTitle>Investment by Location</CardTitle>
+              <div className="flex items-center space-x-1">
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Download className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Expand className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {projectsWithRatings.length > 0 ? (
-                projectsWithRatings.map((project, index) => (
-                  <div 
-                    key={project.id} 
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
-                    data-testid={`project-item-${index}`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Building className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{project.projectname}</p>
-                        <p className="text-sm text-muted-foreground">{project.location}</p>
-                        {project.averageReactionScore > 0 && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className="text-xs text-yellow-600">★</span>
-                            <span className="text-xs text-muted-foreground">
-                              {project.averageReactionScore.toFixed(1)} ({project.reactionCount} rating{project.reactionCount !== 1 ? 's' : ''})
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">{formatCurrency(parseFloat(project.cost))}</p>
-                      <p className="text-sm text-muted-foreground">{project.contractor}</p>
-                    </div>
-                  </div>
-                ))
+            <div className={isMobile ? 'h-48' : 'h-64'}>
+              {analytics?.projectsByLocation && analytics.projectsByLocation.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.projectsByLocation.slice(0, 10).map(item => ({
+                    name: item.location.length > 15 ? item.location.substring(0, 15) + '...' : item.location,
+                    fullName: item.location,
+                    cost: item.cost / 1e9, // Convert to billions
+                    count: item.count
+                  }))} onClick={(data, index) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const clickedItem = data.activePayload[0].payload;
+                      // Click on location - update sidebar filter and redirect to data table
+                      onLocationClick?.(clickedItem.fullName);
+                    }
+                  }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" fontSize={isMobile ? 10 : 12} />
+                    <YAxis fontSize={isMobile ? 10 : 12} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [
+                        `₱${value.toFixed(1)}B`,
+                        name === 'cost' ? 'Investment' : 'Projects'
+                      ]}
+                    />
+                    <Bar
+                      dataKey="cost"
+                      fill="hsl(var(--primary))"
+                      cursor="pointer"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Building className="mx-auto h-8 w-8 mb-2" />
-                  <p className="text-sm">No rated projects available</p>
-                  <p className="text-xs">Projects will appear here when users provide ratings</p>
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <TrendingUp className="mx-auto h-8 w-8 mb-2" />
+                    <p className="text-sm">No location data available</p>
+                  </div>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Contractor List - Only contractors with ratings */}
-        <ContractorList 
-          contractors={contractorsWithRatings}
+        {/* Project Timeline Analysis Chart */}
+        <Card data-testid="chart-project-timeline">
+          <CardHeader className={isMobile ? 'pb-3' : ''}>
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center justify-between'}`}>
+              <CardTitle>Project Timeline Analysis</CardTitle>
+              <div className="flex items-center space-x-1">
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Download className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
+                <Button variant="ghost" size="sm" className={isMobile ? 'p-2' : ''}>
+                  <Expand className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={isMobile ? 'h-48' : 'h-64'}>
+              {fiscalYearData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={fiscalYearData}>
+                    <defs>
+                      <linearGradient id="timelineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="year"
+                      fontSize={isMobile ? 10 : 12}
+                      angle={isMobile ? -45 : 0}
+                      textAnchor={isMobile ? 'end' : 'middle'}
+                      height={isMobile ? 60 : 40}
+                    />
+                    <YAxis fontSize={isMobile ? 10 : 12} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [
+                        name === 'cost' ? `₱${value.toFixed(1)}B` : value,
+                        name === 'cost' ? 'Investment' : 'Projects'
+                      ]}
+                      labelFormatter={(label) => `FY ${label}`}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="cost"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#timelineGradient)"
+                      dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <TrendingUp className="mx-auto h-8 w-8 mb-2" />
+                    <p className="text-sm">No timeline data available</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+      </div>
+
+
+
+      {/* Top Rated Contractors */}
+      <div className="grid grid-cols-1 gap-6">
+        <ContractorList
+          contractors={contractorsData}
           title="Top Rated Contractors"
           useFullCost={useFullCost}
           onUseFullCostChange={setUseFullCost}
+          onContractorSelect={onContractorSelect}
         />
       </div>
 
