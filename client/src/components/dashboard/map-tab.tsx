@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon, Navigation } from 'lucide-react';
+import { Layers, Crosshair, Expand, MapPin, Star, ThumbsUp, AlertTriangle, Ghost, MapPin as LocationIcon, Navigation, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAddReaction, useProjectReactions, useUserProjectReaction } from '@/hooks/useReactions';
 import { useAuth } from '@/hooks/useAuth';
@@ -663,6 +663,38 @@ export function MapTab({ projects, isLoading, selectedProject }: MapTabProps) {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Region:</span>
                     <span className="text-foreground">{currentSelectedProject.region}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Coordinates:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-mono text-xs">
+                        {parseFloat(currentSelectedProject.latitude).toFixed(6)}, {parseFloat(currentSelectedProject.longitude).toFixed(6)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          const coordinates = `${currentSelectedProject.latitude},${currentSelectedProject.longitude}`;
+                          navigator.clipboard.writeText(coordinates).then(() => {
+                            toast({
+                              title: "Coordinates copied!",
+                              description: "Paste in Google Maps to view location",
+                            });
+                          }).catch(() => {
+                            toast({
+                              title: "Failed to copy",
+                              description: "Please copy manually: " + coordinates,
+                              variant: "destructive",
+                            });
+                          });
+                        }}
+                        title="Copy coordinates for Google Maps"
+                        data-testid="button-copy-coordinates"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
